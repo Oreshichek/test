@@ -1,3 +1,4 @@
+-- Global Deep Audit & Fixes Applied
 
 if not game:IsLoaded() then
 	game.Loaded:Wait()
@@ -5,15 +6,7 @@ end
 if game.GameId ~= 4938220315 then
 	return
 end
-pcall(function()
-	if type(writefile) ~= "function" or type(makefolder) ~= "function" or type(isfolder) ~= "function" then
-		return
-	end
-	if not isfolder("SkibidiDefense_Macros") then
-		makefolder("SkibidiDefense_Macros")
-	end
-	writefile("SkibidiDefense_Macros/Hub.lua", "if not game:IsLoaded() then game.Loaded:Wait() end\nloadstring(game:HttpGet(\"https://raw.githubusercontent.com/KeroTwT/Kero-Hub/main/Sources/Skibidi%20Defense\"))()\n")
-end)
+-- Removed the external Kero-Hub bootstrap writer; macro/config persistence remains enabled.
 -- Attribution validation
 local Attribution = {
 	Author = "Kero",
@@ -21,24 +14,24 @@ local Attribution = {
 	ToggleHint = "Hub opened | Press RightShift to hide."
 }
 do
-	local function utilityRoutine4(parameter)
-		if type(parameter) ~= "string" then
+	local function calculateAttributionHash(data)
+		if type(data) ~= "string" then
 			return nil
 		end
 		local count = 0
-		for i = 1, # parameter do
-			count = (count * 131 + string.byte(parameter, i)) % 10000019
+		for i = 1, # data do
+			count = (count * 131 + string.byte(data, i)) % 10000019
 		end
 		return count
 	end
-	local function utilityRoutine5(parameter)
-		if utilityRoutine4(Attribution.Author) ~= 354808 or utilityRoutine4(Attribution.OpenButton) ~= 7010519 or utilityRoutine4(Attribution.ToggleHint) ~= 2144587 then
+	local function validateAttribution(data)
+		if calculateAttributionHash(Attribution.Author) ~= 354808 or calculateAttributionHash(Attribution.OpenButton) ~= 7010519 or calculateAttributionHash(Attribution.ToggleHint) ~= 2144587 then
 			return false
 		end
-		return not parameter or type(parameter.OpenButton) == "table" and utilityRoutine4(parameter.Author) == 354808 and utilityRoutine4(parameter.OpenButton.Title) == 7010519
+		return not data or type(data.OpenButton) == "table" and calculateAttributionHash(data.Author) == 354808 and calculateAttributionHash(data.OpenButton.Title) == 7010519
 	end
-	function Attribution.Assert(parameter)
-		if utilityRoutine5(parameter) then
+	function Attribution.Assert(data)
+		if validateAttribution(data) then
 			return true
 		end
 		Attribution.Stopped = true
@@ -52,18 +45,18 @@ do
 		end
 		error("Kero hub attribution check failed", 0)
 	end
-	function Attribution.Check(parameter)
-		Attribution.Assert(parameter)
-		Attribution.Options = parameter
-		return parameter
+	function Attribution.Check(data)
+		Attribution.Assert(data)
+		Attribution.Options = data
+		return data
 	end
-	function Attribution.Bind(parameter, parameter2, parameter3, parameter4)
-		Attribution.Window = parameter
-		Attribution.Cleanup = parameter3
+	function Attribution.Bind(data, options, callback, context)
+		Attribution.Window = data
+		Attribution.Cleanup = callback
 		Attribution.Assert(Attribution.Options)
-		if parameter4 and type(parameter4.Notify) == "function" then
+		if context and type(context.Notify) == "function" then
 			pcall(function()
-				parameter4:Notify({
+				context:Notify({
 					Title = "Skibidi Defense Hub",
 					Content = Attribution.ToggleHint,
 					Duration = 3
@@ -71,12 +64,12 @@ do
 			end)
 		end
 		task.spawn(function()
-			while not Attribution.Stopped and parameter2() do
+			while not Attribution.Stopped and options() do
 				Attribution.Assert(Attribution.Options)
 				task.wait(1)
 			end
 		end)
-		return parameter
+		return data
 	end
 	Attribution.Assert()
 end
@@ -164,10 +157,10 @@ end
 if hasFileApi and type(listfiles) == "function" and isfolder(LEGACY_FOLDER) then
 	for _, item2 in ipairs(listfiles(LEGACY_FOLDER)) do
 		local matched = item2:match("([^\\/]+%.json)$")
-		local runtimeValue17 = matched and MACRO_FOLDER .. "/" .. matched
-		if runtimeValue17 and not isfile(runtimeValue17) then
+		local matchedPath = matched and MACRO_FOLDER .. "/" .. matched
+		if matchedPath and not isfile(matchedPath) then
 			pcall(function()
-				writefile(runtimeValue17, readfile(item2))
+				writefile(matchedPath, readfile(item2))
 			end)
 		end
 	end
@@ -191,9 +184,9 @@ local function bindMoneySync(remote)
 		return
 	end
 	local ok2, result2 = pcall(function()
-		return remote.OnClientEvent:Connect(function(parameter, parameter2)
-			if State.Running and State.MoneySyncRemote == remote and parameter == "Money" and tonumber(parameter2) then
-				State.ServerMoney = tonumber(parameter2)
+		return remote.OnClientEvent:Connect(function(data, options)
+			if State.Running and State.MoneySyncRemote == remote and data == "Money" and tonumber(options) then
+				State.ServerMoney = tonumber(options)
 				State.ServerMoneyAt = os.clock()
 				State.ServerMoneyVersion = (State.ServerMoneyVersion or 0) + 1
 			end
@@ -209,7 +202,7 @@ local function refreshRemotes()
 	local game2 = ReplicatedStorage:FindFirstChild("Game")
 	local gAMESTART = ReplicatedStorage:FindFirstChild("GAME_START")
 	local events = ReplicatedStorage:FindFirstChild("Events")
-	local runtimeValue4 = game2 and game2:FindFirstChild("Speed")
+	local value = game2 and game2:FindFirstChild("Speed")
 	Remotes.Place = event and event:FindFirstChild("placeTower")
 	Remotes.Upgrade = event and event:FindFirstChild("UpgradeTower")
 	Remotes.Sell = event and event:FindFirstChild("RemoveTower")
@@ -223,7 +216,7 @@ local function refreshRemotes()
 	Remotes.Skip = event and event:FindFirstChild("waveSkip")
 	Remotes.Replay = event and event:FindFirstChild("ReplayCore")
 	Remotes.Ready = gAMESTART and gAMESTART:FindFirstChild("readyButton")
-	Remotes.Speed = runtimeValue4 and runtimeValue4:FindFirstChild("Change")
+	Remotes.Speed = value and value:FindFirstChild("Change")
 	Remotes.CreateServer = events and events:FindFirstChild("createServer")
 	Remotes.StartServer = events and events:FindFirstChild("start")
 	Remotes.ModifierState = ReplicatedStorage:FindFirstChild("ModifierState")
@@ -250,7 +243,7 @@ local function disconnectAll(connections)
 	table.clear(connections)
 end
 local function waitUntil(predicate, timeout, interval)
-	local runtimeValue4 = os.clock() + (timeout or 5)
+	local value = os.clock() + (timeout or 5)
 	interval = interval or 0.1
 	repeat
 		if not State.Running then
@@ -261,7 +254,7 @@ local function waitUntil(predicate, timeout, interval)
 			return true, result2
 		end
 		task.wait(interval)
-	until os.clock() >= runtimeValue4
+	until os.clock() >= value
 	return false
 end
 -- Match state and HUD readers
@@ -269,26 +262,26 @@ local function getPlayerGui()
 	return LocalPlayer:FindFirstChildOfClass("PlayerGui")
 end
 local function getGameEndedGui()
-	local runtimeValue4 = getPlayerGui()
-	return runtimeValue4 and runtimeValue4:FindFirstChild("GameEnded")
+	local value = getPlayerGui()
+	return value and value:FindFirstChild("GameEnded")
 end
 local function isMatchEnded()
-	local runtimeValue4 = getGameEndedGui()
-	local runtimeValue5 = runtimeValue4 and runtimeValue4:FindFirstChild("Frame")
-	return runtimeValue4 ~= nil and runtimeValue4.Enabled ~= false and runtimeValue5 ~= nil and runtimeValue5.Visible ~= false
+	local value = getGameEndedGui()
+	local result = value and value:FindFirstChild("Frame")
+	return value ~= nil and value.Enabled ~= false and result ~= nil and result.Visible ~= false
 end
 local function clickBackButton()
 	if Hub.MatchFlow then
 		return Hub.MatchFlow.ClickResult("back")
 	end
-	local runtimeValue4 = getGameEndedGui()
-	local runtimeValue5 = runtimeValue4 and runtimeValue4:FindFirstChild("Frame")
-	local runtimeValue6 = runtimeValue5 and runtimeValue5:FindFirstChild("back")
-	if not runtimeValue6 or not runtimeValue6:IsA("GuiButton") then
+	local value = getGameEndedGui()
+	local result = value and value:FindFirstChild("Frame")
+	local child = result and result:FindFirstChild("back")
+	if not child or not child:IsA("GuiButton") then
 		return false, "GameEnded.Frame.back was not found"
 	end
 	if type(getconnections) == "function" then
-		local ok2, result2 = pcall(getconnections, runtimeValue6.MouseButton1Click)
+		local ok2, result2 = pcall(getconnections, child.MouseButton1Click)
 		if ok2 and type(result2) == "table" then
 			for _, item in ipairs(result2) do
 				local ok3 = pcall(function()
@@ -307,7 +300,7 @@ local function clickBackButton()
 		end
 	end
 	if type(firesignal) == "function" then
-		local ok4, result3 = pcall(firesignal, runtimeValue6.MouseButton1Click)
+		local ok4, result3 = pcall(firesignal, child.MouseButton1Click)
 		if ok4 then
 			return true
 		end
@@ -317,56 +310,56 @@ local function clickBackButton()
 end
 local function getMoney()
 	local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
-	local runtimeValue4 = leaderstats and leaderstats:FindFirstChild("Money")
-	State.LastLeaderMoney = runtimeValue4 and tonumber(runtimeValue4.Value) or 0
-	local runtimeValue5 = State.ServerMoney ~= nil and tonumber(State.ServerMoney) or State.LastLeaderMoney
-	if runtimeValue5 == - 9223372036854775808 or runtimeValue5 == math.huge then
+	local value = leaderstats and leaderstats:FindFirstChild("Money")
+	State.LastLeaderMoney = value and tonumber(value.Value) or 0
+	local result = State.ServerMoney ~= nil and tonumber(State.ServerMoney) or State.LastLeaderMoney
+	if result == - 9223372036854775808 or result == math.huge then
 		return math.huge
 	end
-	if runtimeValue5 ~= runtimeValue5 or runtimeValue5 == - math.huge then
+	if result ~= result or result == - math.huge then
 		return 0
 	end
-	return runtimeValue5
+	return result
 end
 local function formatMoney()
-	local runtimeValue4 = getMoney()
-	if runtimeValue4 == math.huge then
+	local value = getMoney()
+	if value == math.huge then
 		return "Infinite"
 	end
-	if runtimeValue4 % 1 ~= 0 then
-		return string.format("%.2f", runtimeValue4):gsub("0+$", ""):gsub("%.$", "")
+	if value % 1 ~= 0 then
+		return string.format("%.2f", value):gsub("0+$", ""):gsub("%.$", "")
 	end
-	return string.format("%.0f", runtimeValue4)
+	return string.format("%.0f", value)
 end
 local function getWave()
-	local runtimeValue4 = getPlayerGui()
-	local runtimeValue5 = runtimeValue4 and runtimeValue4:FindFirstChild("Data")
-	local runtimeValue6 = runtimeValue5 and runtimeValue5:FindFirstChild("Wave")
-	local runtimeValue7 = runtimeValue6 and runtimeValue6:FindFirstChild("Frame")
-	local runtimeValue8 = runtimeValue7 and runtimeValue7:FindFirstChild("TextLabel")
-	local runtimeValue9 = runtimeValue8 and runtimeValue8.Text or ""
-	return tonumber(runtimeValue9:match("[Ww][Aa][Vv][Ee]%s*(%d+)")) or 0
+	local value = getPlayerGui()
+	local result = value and value:FindFirstChild("Data")
+	local child = result and result:FindFirstChild("Wave")
+	local element = child and child:FindFirstChild("Frame")
+	local label = element and element:FindFirstChild("TextLabel")
+	local textValue = label and label.Text or ""
+	return tonumber(textValue:match("[Ww][Aa][Vv][Ee]%s*(%d+)")) or 0
 end
 local function getPlacementText()
-	local runtimeValue4 = getPlayerGui()
-	local runtimeValue5 = runtimeValue4 and runtimeValue4:FindFirstChild("Towers")
-	local runtimeValue6 = runtimeValue5 and runtimeValue5:FindFirstChild("Placement")
-	local runtimeValue7 = runtimeValue6 and runtimeValue6:FindFirstChild("Frame")
-	local runtimeValue8 = runtimeValue7 and runtimeValue7:FindFirstChild("TextLabel")
-	return runtimeValue8 and runtimeValue8.Text or "Units: ?/?"
+	local value = getPlayerGui()
+	local result = value and value:FindFirstChild("Towers")
+	local child = result and result:FindFirstChild("Placement")
+	local element = child and child:FindFirstChild("Frame")
+	local label = element and element:FindFirstChild("TextLabel")
+	return label and label.Text or "Units: ?/?"
 end
 local function getRuntimeText()
-	local runtimeValue4 = game.PlaceId == LOBBY_PLACE_ID and "Lobby" or "Wave " .. getWave()
-	return runtimeValue4 .. " | " .. State.PlaybackMode .. " | Cash: " .. formatMoney()
+	local value = game.PlaceId == LOBBY_PLACE_ID and "Lobby" or "Wave " .. getWave()
+	return value .. " | " .. State.PlaybackMode .. " | Cash: " .. formatMoney()
 end
 local function getSpeedMultiplier()
-	local runtimeValue4 = getPlayerGui()
-	local runtimeValue5 = runtimeValue4 and runtimeValue4:FindFirstChild("Towers")
-	local runtimeValue6 = runtimeValue5 and runtimeValue5:FindFirstChild("speedButton")
-	local runtimeValue7 = runtimeValue6 and runtimeValue6:FindFirstChild("inner")
-	local runtimeValue8 = runtimeValue7 and runtimeValue7:FindFirstChild("mult")
-	local runtimeValue9 = runtimeValue8 and runtimeValue8.Text or ""
-	return tonumber(runtimeValue9:match("(%d+)%s*[xX]"))
+	local value = getPlayerGui()
+	local result = value and value:FindFirstChild("Towers")
+	local child = result and result:FindFirstChild("speedButton")
+	local element = child and child:FindFirstChild("inner")
+	local label = element and element:FindFirstChild("mult")
+	local textValue = label and label.Text or ""
+	return tonumber(textValue:match("(%d+)%s*[xX]"))
 end
 local hpLabel
 local function getBaseHealthText()
@@ -386,11 +379,11 @@ local function getBaseHealthText()
 	return "?/?"
 end
 local function getMatchResult()
-	local runtimeValue4 = getGameEndedGui()
-	if not runtimeValue4 then
+	local value = getGameEndedGui()
+	if not value then
 		return "Match Ended"
 	end
-	for _, item in ipairs(runtimeValue4:GetDescendants()) do
+	for _, item in ipairs(value:GetDescendants()) do
 		if item:IsA("TextLabel") or item:IsA("TextButton") then
 			local str = tostring(item.Text or "")
 			local lowered = string.lower(str)
@@ -399,7 +392,7 @@ local function getMatchResult()
 			end
 		end
 	end
-	for _, item3 in ipairs(runtimeValue4:GetDescendants()) do
+	for _, item3 in ipairs(value:GetDescendants()) do
 		if item3:IsA("TextLabel") or item3:IsA("TextButton") then
 			local lowered2 = string.lower(tostring(item3.Text or ""))
 			if lowered2:find("defeat", 1, true) or lowered2:find("you lost", 1, true) or lowered2:find("game over", 1, true) then
@@ -438,7 +431,7 @@ local function saveProfile(name)
 	if not hasFileApi then
 		return false, "Executor filesystem APIs are unavailable"
 	end
-	local dataTable = {
+	local records = {
 		Version = 6,
 		Game = "Skibidi Defense",
 		Universe = game.GameId,
@@ -448,7 +441,7 @@ local function saveProfile(name)
 		Actions = State.Actions,
 		Loadout = State.MacroLoadout
 	}
-	local ok2, result2 = pcall(HttpService.JSONEncode, HttpService, dataTable)
+	local ok2, result2 = pcall(HttpService.JSONEncode, HttpService, records)
 	if not ok2 then
 		return false, result2
 	end
@@ -478,25 +471,25 @@ local function listProfiles()
 	if not hasFileApi or type(listfiles) ~= "function" then
 		return {}
 	end
-	local dataTable = {}
+	local records = {}
 	for _, item in ipairs(listfiles(MACRO_FOLDER)) do
 		local matched2 = item:match("([^\\/]+)%.json$")
 		if matched2 and matched2 ~= "HubConfig" then
-			table.insert(dataTable, matched2)
+			table.insert(records, matched2)
 		end
 	end
-	table.sort(dataTable)
-	return dataTable
+	table.sort(records)
+	return records
 end
 -- Interface state and recorder bookkeeping
 local UI = {}
 local function setStatus(status, detail)
 	State.Status, State.StatusDetail = status, detail or ""
 	if UI.Status then
-		local runtimeValue4 = "State: " .. tostring(status)
-		if UI.LastStatusTitle ~= runtimeValue4 then
-			UI.LastStatusTitle = runtimeValue4
-			UI.Status:SetTitle(runtimeValue4)
+		local value = "State: " .. tostring(status)
+		if UI.LastStatusTitle ~= value then
+			UI.LastStatusTitle = value
+			UI.Status:SetTitle(value)
 		end
 		if UI.LastStatusDetail ~= State.StatusDetail then
 			UI.LastStatusDetail = State.StatusDetail
@@ -535,25 +528,25 @@ local function queueTowerAction(meta, action)
 	end
 end
 -- Ability metadata and input recording
-local function isTruthyState(parameter)
-	return parameter == true or type(parameter) == "number" and parameter > 0
+local function isTruthyState(data)
+	return data == true or type(data) == "number" and data > 0
 end
-local function abilityStateChanged(parameter, parameter2, parameter3)
-	return parameter2 ~= parameter and (isTruthyState(parameter2) or parameter3 and parameter == nil and parameter2 == 0)
+local function abilityStateChanged(data, options, callback)
+	return options ~= data and (isTruthyState(options) or callback and data == nil and options == 0)
 end
-local function isModeMarker(parameter)
-	return parameter == "SwitchModeState" or parameter == "AttackMode"
+local function isModeMarker(data)
+	return data == "SwitchModeState" or data == "AttackMode"
 end
 local function getGameClock()
 	local game2 = ReplicatedStorage:FindFirstChild("Game")
-	local runtimeValue4 = game2 and game2:FindFirstChild("Clock")
-	local runtimeValue5 = runtimeValue4 and tonumber(runtimeValue4.Value)
-	if runtimeValue5 and runtimeValue5 == runtimeValue5 and runtimeValue5 >= 0 and runtimeValue5 < math.huge then
-		return runtimeValue5, "Game"
+	local value = game2 and game2:FindFirstChild("Clock")
+	local result = value and tonumber(value.Value)
+	if result and result == result and result >= 0 and result < math.huge then
+		return result, "Game"
 	end
 	return os.clock(), "Real"
 end
-local function recorderTrace(parameter, parameter2)
+local function recorderTrace(data, options)
 	local recorderTrace2 = State.RecorderTrace
 	if not recorderTrace2 then
 		return
@@ -564,25 +557,25 @@ local function recorderTrace(parameter, parameter2)
 	end
 	table.insert(recorderTrace2, {
 		At = os.clock() - State.RecordStartedAt,
-		Type = parameter,
-		Data = parameter2
+		Type = data,
+		Data = options
 	})
 end
-local function sanitizeTraceValue(parameter)
-	if type(parameter) == "number" then
-		return parameter == parameter and math.abs(parameter) ~= math.huge and parameter or tostring(parameter)
+local function sanitizeTraceValue(data)
+	if type(data) == "number" then
+		return data == data and math.abs(data) ~= math.huge and data or tostring(data)
 	end
-	if type(parameter) == "string" then
-		return parameter:sub(1, 250)
+	if type(data) == "string" then
+		return data:sub(1, 250)
 	end
-	if type(parameter) == "boolean" or parameter == nil then
-		return parameter
+	if type(data) == "boolean" or data == nil then
+		return data
 	end
-	return tostring(parameter)
+	return tostring(data)
 end
-local function parseCost(parameter)
-	local runtimeValue4 = tostring(parameter or ""):gsub("<[^>]+>", ""):gsub(",", ""):gsub("%s", "")
-	local value, value1 = runtimeValue4:upper():match("%$?(%d+%.?%d*)([KMBT]?)")
+local function parseCost(data)
+	local value = tostring(data or ""):gsub("<[^>]+>", ""):gsub(",", ""):gsub("%s", "")
+	local value, value1 = value:upper():match("%$?(%d+%.?%d*)([KMBT]?)")
 	return (tonumber(value) or 0) * (({
 		K = 1e3,
 		M = 1e6,
@@ -590,115 +583,115 @@ local function parseCost(parameter)
 		T = 1e12
 	})[value1] or 1)
 end
-local function readAbilityCard(parameter, parameter2)
-	local runtimeValue4 = parameter
+local function readAbilityCard(data, options)
+	local value = data
 	for _ = 1, 12 do
-		if not runtimeValue4 then
+		if not value then
 			return nil
 		end
-		if runtimeValue4.Parent and runtimeValue4.Parent.Name == "Abilities" then
+		if value.Parent and value.Parent.Name == "Abilities" then
 			break
 		end
-		runtimeValue4 = runtimeValue4.Parent
+		value = value.Parent
 	end
-	if not runtimeValue4 or not runtimeValue4.Parent or runtimeValue4.Parent.Name ~= "Abilities" then
+	if not value or not value.Parent or value.Parent.Name ~= "Abilities" then
 		return nil
 	end
-	local title, cost = runtimeValue4:FindFirstChild("Title"), runtimeValue4:FindFirstChild("Cost")
+	local title, cost = value:FindFirstChild("Title"), value:FindFirstChild("Cost")
 	if not title or not cost then
 		return nil
 	end
 	if not (title:IsA("TextLabel") or title:IsA("TextButton")) or not (cost:IsA("TextLabel") or cost:IsA("TextButton")) then
 		return nil
 	end
-	local runtimeValue5 = runtimeValue4
-	while runtimeValue5 do
-		if not parameter2 and runtimeValue5:IsA("GuiObject") and not runtimeValue5.Visible then
+	local result = value
+	while result do
+		if not options and result:IsA("GuiObject") and not result.Visible then
 			return nil
 		end
-		if not parameter2 and runtimeValue5:IsA("ScreenGui") and not runtimeValue5.Enabled then
+		if not options and result:IsA("ScreenGui") and not result.Enabled then
 			return nil
 		end
-		runtimeValue5 = runtimeValue5.Parent
+		result = result.Parent
 	end
-	local runtimeValue6 = tostring(title.Text):gsub("<[^>]+>", "")
-	if runtimeValue6 == "" or runtimeValue6 == "..." then
+	local child = tostring(title.Text):gsub("<[^>]+>", "")
+	if child == "" or child == "..." then
 		return nil
 	end
-	local runtimeValue7 = ({
+	local element = ({
 		["Switch Mode"] = "SwitchModeState",
 		["Attack Mode Switch"] = "AttackMode"
-	})[runtimeValue6] or "ATTACK" .. runtimeValue6:gsub("%s+", "")
-	local locked = runtimeValue4:FindFirstChild("Locked")
-	local runtimeValue8 = locked and locked:FindFirstChild("Frame")
-	local runtimeValue9 = runtimeValue8 and runtimeValue8:IsA("TextLabel") and tonumber(tostring(runtimeValue8.Text):match("([%d%.]+)")) or nil
-	local runtimeValue10 = tonumber(runtimeValue4:GetAttribute("AbilityIndex")) or tonumber(runtimeValue4.Name:match("(%d+)$"))
-	if not runtimeValue10 then
-		local dataTable = {}
-		for index, item in ipairs(runtimeValue4.Parent:GetChildren()) do
-			if item:IsA("GuiObject") and (parameter2 or item.Visible) and item:FindFirstChild("Title") and item:FindFirstChild("Cost") then
-				table.insert(dataTable, {
+	})[child] or "ATTACK" .. child:gsub("%s+", "")
+	local locked = value:FindFirstChild("Locked")
+	local label = locked and locked:FindFirstChild("Frame")
+	local textValue = label and label:IsA("TextLabel") and tonumber(tostring(label.Text):match("([%d%.]+)")) or nil
+	local indexValue = tonumber(value:GetAttribute("AbilityIndex")) or tonumber(value.Name:match("(%d+)$"))
+	if not indexValue then
+		local records = {}
+		for index, item in ipairs(value.Parent:GetChildren()) do
+			if item:IsA("GuiObject") and (options or item.Visible) and item:FindFirstChild("Title") and item:FindFirstChild("Cost") then
+				table.insert(records, {
 					Object = item,
 					Order = index,
 					Layout = item.LayoutOrder
 				})
 			end
 		end
-		table.sort(dataTable, function(parameter3, parameter4)
-			return parameter3.Layout == parameter4.Layout and parameter3.Order < parameter4.Order or parameter3.Layout < parameter4.Layout
+		table.sort(records, function(callback, context)
+			return callback.Layout == context.Layout and callback.Order < context.Order or callback.Layout < context.Layout
 		end)
-		for index2, item3 in ipairs(dataTable) do
-			if item3.Object == runtimeValue4 then
-				runtimeValue10 = index2
+		for index2, item3 in ipairs(records) do
+			if item3.Object == value then
+				indexValue = index2
 				break
 			end
 		end
 	end
 	return {
-		Card = runtimeValue4,
-		Title = runtimeValue6,
-		Marker = runtimeValue7,
-		Index = runtimeValue10 or 1,
+		Card = value,
+		Title = child,
+		Marker = element,
+		Index = indexValue or 1,
 		Cost = parseCost(cost.Text),
-		Cooldown = runtimeValue9,
-		CooldownFloor = runtimeValue7 == "AttackMode" and 5 or nil,
+		Cooldown = textValue,
+		CooldownFloor = element == "AttackMode" and 5 or nil,
 		At = os.clock()
 	}
 end
-local function onAbilityCardClicked(parameter)
-	local runtimeValue4 = readAbilityCard(parameter)
-	if not runtimeValue4 then
+local function onAbilityCardClicked(data)
+	local value = readAbilityCard(data)
+	if not value then
 		return
 	end
 	local pendingAbility = State.PendingAbility
-	if pendingAbility and pendingAbility.Card == runtimeValue4.Card and runtimeValue4.At - pendingAbility.At < 0.1 then
+	if pendingAbility and pendingAbility.Card == value.Card and value.At - pendingAbility.At < 0.1 then
 		return
 	end
-	State.PendingAbility = runtimeValue4
+	State.PendingAbility = value
 	recorderTrace("ability_input", {
-		Title = runtimeValue4.Title,
-		Index = runtimeValue4.Index,
-		GuessedMarker = runtimeValue4.Marker,
-		Cost = runtimeValue4.Cost
+		Title = value.Title,
+		Index = value.Index,
+		GuessedMarker = value.Marker,
+		Cost = value.Cost
 	})
 end
-local function resolveAbilityCard(parameter)
+local function resolveAbilityCard(data)
 	local pendingAbility = State.PendingAbility
-	if pendingAbility and os.clock() - pendingAbility.At <= 12 and pendingAbility.Marker == parameter then
+	if pendingAbility and os.clock() - pendingAbility.At <= 12 and pendingAbility.Marker == data then
 		return pendingAbility
 	end
-	local runtimeValue4 = getPlayerGui()
-	if runtimeValue4 then
-		for _, item in ipairs(runtimeValue4:GetDescendants()) do
+	local value = getPlayerGui()
+	if value then
+		for _, item in ipairs(value:GetDescendants()) do
 			if item.Name == "Title" then
 				local ok2, result2 = pcall(readAbilityCard, item, true)
-				if ok2 and result2 and result2.Marker == parameter then
+				if ok2 and result2 and result2.Marker == data then
 					return result2
 				end
 			end
 		end
 	end
-	if parameter == "ATTACKSoundBlast" then
+	if data == "ATTACKSoundBlast" then
 		return {
 			Title = "SoundBlast",
 			Index = 1,
@@ -706,14 +699,14 @@ local function resolveAbilityCard(parameter)
 			Cooldown = 3.2
 		}
 	end
-	if parameter == "SwitchModeState" then
+	if data == "SwitchModeState" then
 		return {
 			Title = "Switch Mode",
 			Index = 1,
 			Cost = 1000000
 		}
 	end
-	if parameter == "AttackMode" then
+	if data == "AttackMode" then
 		return {
 			Title = "Attack Mode Switch",
 			Index = 1,
@@ -722,163 +715,163 @@ local function resolveAbilityCard(parameter)
 		}
 	end
 end
-local function sampleAbilityCooldown(parameter)
-	if parameter.Session ~= State.RecordSession then
+local function sampleAbilityCooldown(data)
+	if data.Session ~= State.RecordSession then
 		return
 	end
-	local card = parameter.Card
-	local runtimeValue4 = card and card:FindFirstChild("Title")
-	local runtimeValue5 = card and card:FindFirstChild("Locked")
-	local runtimeValue6 = runtimeValue5 and runtimeValue5:FindFirstChild("Frame")
-	if not runtimeValue4 or tostring(runtimeValue4.Text):gsub("<[^>]+>", "") ~= parameter.Action.AbilityName or not runtimeValue5.Visible or not runtimeValue6 or not runtimeValue6:IsA("TextLabel") then
+	local card = data.Card
+	local value = card and card:FindFirstChild("Title")
+	local result = card and card:FindFirstChild("Locked")
+	local child = result and result:FindFirstChild("Frame")
+	if not value or tostring(value.Text):gsub("<[^>]+>", "") ~= data.Action.AbilityName or not result or not result.Visible or not child or not child:IsA("TextLabel") then
 		return
 	end
-	local num = tonumber(tostring(runtimeValue6.Text):match("^%s*(%d+%.?%d*)s%s*$"))
+	local num = tonumber(tostring(child.Text):match("^%s*(%d+%.?%d*)s%s*$"))
 	if not num or num <= 0 or num > 3600 then
 		return
 	end
 	local value, value1 = getGameClock()
-	local runtimeValue7 = value1 == parameter.Kind and value - parameter.At or os.clock() - parameter.RealAt
-	local runtimeValue8 = math.ceil((num + math.max(0, runtimeValue7)) * 10) / 10
-	if runtimeValue8 > (parameter.Action.Cooldown or 0) then
-		parameter.Action.Cooldown = runtimeValue8
+	local element = value1 == data.Kind and value - data.At or os.clock() - data.RealAt
+	local label = math.ceil((num + math.max(0, element)) * 10) / 10
+	if label > (data.Action.Cooldown or 0) then
+		data.Action.Cooldown = label
 		recorderTrace("ability_cooldown", {
-			Marker = parameter.Action.Marker,
-			Seconds = runtimeValue8
+			Marker = data.Action.Marker,
+			Seconds = label
 		})
 	end
 end
-Hub.RecordAbilityAction = function(parameter, parameter2, parameter3, parameter4)
+Hub.RecordAbilityAction = function(data, options, callback, context)
 	if not State.Recording or not towerData then
 		return false
 	end
-	local runtimeValue4 = typeof(parameter) == "Instance" and parameter or towerData:FindFirstChild(tostring(parameter or ""))
-	local runtimeValue5 = runtimeValue4 and State.TowerMeta[runtimeValue4]
-	if not runtimeValue5 then
+	local value = typeof(data) == "Instance" and data or towerData:FindFirstChild(tostring(data or ""))
+	local result = value and State.TowerMeta[value]
+	if not result then
 		return false
 	end
-	local runtimeValue6 = parameter4 and parameter4.CapturedIntent or State.SkillIntents and State.SkillIntents[tostring(runtimeValue4.Name)]
-	if runtimeValue6 and not runtimeValue6.Rejected and runtimeValue6.Session == State.RecordSession and os.clock() - runtimeValue6.At <= 12 then
-		parameter2 = runtimeValue6.Index
-		parameter4 = parameter4 or {}
-		parameter4.RecordedAt = runtimeValue6.RecordedAt
-		parameter4.RemoteIntent = true
-		runtimeValue6.Marker = parameter3 or runtimeValue6.Marker
+	local child = context and context.CapturedIntent or State.SkillIntents and State.SkillIntents[tostring(value.Name)]
+	if child and not child.Rejected and child.Session == State.RecordSession and os.clock() - child.At <= 12 then
+		options = child.Index
+		context = context or {}
+		context.RecordedAt = child.RecordedAt
+		context.RemoteIntent = true
+		child.Marker = callback or child.Marker
 	else
-		runtimeValue6 = nil
+		child = nil
 	end
 	local now = os.clock()
-	local lastAbilityAction = runtimeValue5.LastAbilityAction
-	if lastAbilityAction and (runtimeValue6 and runtimeValue5.LastAbilityIntent == runtimeValue6 or not runtimeValue6 and lastAbilityAction.Marker == (parameter3 and tostring(parameter3) or nil) and now - (runtimeValue5.LastAbilityRecordedAt or - math.huge) <= 0.35) then
-		lastAbilityAction.AbilityIndex = tonumber(parameter2) or lastAbilityAction.AbilityIndex or 1
-		if parameter4 and parameter4.RecordedAt then
-			lastAbilityAction.RecordedAt = parameter4.RecordedAt
+	local lastAbilityAction = result.LastAbilityAction
+	if lastAbilityAction and (child and result.LastAbilityIntent == child or not child and lastAbilityAction.Marker == (callback and tostring(callback) or nil) and now - (result.LastAbilityRecordedAt or - math.huge) <= 0.35) then
+		lastAbilityAction.AbilityIndex = tonumber(options) or lastAbilityAction.AbilityIndex or 1
+		if context and context.RecordedAt then
+			lastAbilityAction.RecordedAt = context.RecordedAt
 		end
-		if parameter3 and tostring(parameter3) ~= "" then
-			lastAbilityAction.Marker = tostring(parameter3)
+		if callback and tostring(callback) ~= "" then
+			lastAbilityAction.Marker = tostring(callback)
 		end
-		if parameter4 and isModeMarker(parameter3) and lastAbilityAction.ExpectedState == nil then
-			lastAbilityAction.ExpectedState = parameter4.ConfirmedValue or runtimeValue4:GetAttribute(parameter3)
-			lastAbilityAction.FromState = parameter4.PreviousValue
+		if context and isModeMarker(callback) and lastAbilityAction.ExpectedState == nil then
+			lastAbilityAction.ExpectedState = context.ConfirmedValue or value:GetAttribute(callback)
+			lastAbilityAction.FromState = context.PreviousValue
 		end
-		runtimeValue5.LastAbilityRecordedAt = now
+		result.LastAbilityRecordedAt = now
 		updateActionSummary()
 		return true
 	end
-	local dataTable = {
+	local records = {
 		Type = "Ability",
-		Handle = runtimeValue5.Handle,
-		AbilityIndex = tonumber(parameter2) or 1,
-		Marker = parameter3 and tostring(parameter3) or nil,
-		RecordedAt = parameter4 and parameter4.RecordedAt,
-		CaptureSource = parameter4 and parameter4.RemoteIntent and "Remote" or nil
+		Handle = result.Handle,
+		AbilityIndex = tonumber(options) or 1,
+		Marker = callback and tostring(callback) or nil,
+		RecordedAt = context and context.RecordedAt,
+		CaptureSource = context and context.RemoteIntent and "Remote" or nil
 	}
-	runtimeValue5.LastAbilityAction = dataTable
-	runtimeValue5.LastAbilityIntent = runtimeValue6
-	runtimeValue5.LastAbilityRecordedAt = now
-	if parameter4 then
-		dataTable.AbilityName = parameter4.Title
-		dataTable.EstimatedCost = parameter4.Cost
-		dataTable.Cooldown = math.max(tonumber(parameter4.Cooldown) or 0, tonumber(parameter4.CooldownFloor) or 0)
-		dataTable.RequiredLevel = tonumber(runtimeValue4:GetAttribute("Upgrade")) or 0
-		if isModeMarker(parameter3) then
-			dataTable.ExpectedState = parameter4.ConfirmedValue or runtimeValue4:GetAttribute(parameter3)
-			dataTable.FromState = parameter4.PreviousValue
+	result.LastAbilityAction = records
+	result.LastAbilityIntent = child
+	result.LastAbilityRecordedAt = now
+	if context then
+		records.AbilityName = context.Title
+		records.EstimatedCost = context.Cost
+		records.Cooldown = math.max(tonumber(context.Cooldown) or 0, tonumber(context.CooldownFloor) or 0)
+		records.RequiredLevel = tonumber(value:GetAttribute("Upgrade")) or 0
+		if isModeMarker(callback) then
+			records.ExpectedState = context.ConfirmedValue or value:GetAttribute(callback)
+			records.FromState = context.PreviousValue
 		end
 	end
-	queueTowerAction(runtimeValue5, dataTable)
-	if parameter4 and parameter4.Card then
+	queueTowerAction(result, records)
+	if context and context.Card then
 		local value, value1 = getGameClock()
-		local dataTable2 = {
-			Action = dataTable,
-			Card = parameter4.Card,
+		local copiedData = {
+			Action = records,
+			Card = context.Card,
 			At = value,
 			Kind = value1,
 			RealAt = os.clock(),
 			Session = State.RecordSession
 		}
 		State.RecordCooldownSamples = State.RecordCooldownSamples or {}
-		table.insert(State.RecordCooldownSamples, dataTable2)
+		table.insert(State.RecordCooldownSamples, copiedData)
 		for _, item in ipairs({
 			.25,
 			.75
 		}) do
 			task.delay(item, function()
-				if State.Recording and State.RecordSession == dataTable2.Session then
-					pcall(sampleAbilityCooldown, dataTable2)
+				if State.Recording and State.RecordSession == copiedData.Session then
+					pcall(sampleAbilityCooldown, copiedData)
 				end
 			end)
 		end
 	end
 	recorderTrace("ability_recorded", {
-		Handle = runtimeValue5.Handle,
-		Marker = parameter3,
-		Index = parameter2
+		Handle = result.Handle,
+		Marker = callback,
+		Index = options
 	})
 	return true
 end
-Hub.RecordBoostLinkAction = function(parameter, parameter2)
+Hub.RecordBoostLinkAction = function(data, options)
 	if not State.Recording or not towerData then
 		return false
 	end
-	local runtimeValue4 = typeof(parameter) == "Instance" and parameter or towerData:FindFirstChild(tostring(parameter or ""))
-	local runtimeValue5 = typeof(parameter2) == "Instance" and parameter2 or towerData:FindFirstChild(tostring(parameter2 or ""))
-	local runtimeValue6 = runtimeValue4 and State.TowerMeta[runtimeValue4]
-	local runtimeValue7 = runtimeValue5 and State.TowerMeta[runtimeValue5]
-	if not runtimeValue6 or not runtimeValue7 or runtimeValue4 == runtimeValue5 then
+	local value = typeof(data) == "Instance" and data or towerData:FindFirstChild(tostring(data or ""))
+	local result = typeof(options) == "Instance" and options or towerData:FindFirstChild(tostring(options or ""))
+	local child = value and State.TowerMeta[value]
+	local element = result and State.TowerMeta[result]
+	if not child or not element or value == result then
 		return false
 	end
-	if not runtimeValue6.PlaceRecorded or not runtimeValue7.PlaceRecorded then
-		if runtimeValue7.PendingBoostSourceHandle == runtimeValue6.Handle then
+	if not child.PlaceRecorded or not element.PlaceRecorded then
+		if element.PendingBoostSourceHandle == child.Handle then
 			return true
 		end
-		runtimeValue7.PendingBoostSourceHandle = runtimeValue6.Handle
+		element.PendingBoostSourceHandle = child.Handle
 		task.spawn(function()
-			local runtimeValue8 = waitUntil(function()
-				return not State.Recording or runtimeValue6.PlaceRecorded and runtimeValue7.PlaceRecorded
+			local label = waitUntil(function()
+				return not State.Recording or child.PlaceRecorded and element.PlaceRecorded
 			end, 3, 0.03)
-			if runtimeValue7.PendingBoostSourceHandle == runtimeValue6.Handle then
-				runtimeValue7.PendingBoostSourceHandle = nil
+			if element.PendingBoostSourceHandle == child.Handle then
+				element.PendingBoostSourceHandle = nil
 			end
-			if runtimeValue8 and State.Recording and runtimeValue4.Parent == towerData and runtimeValue5.Parent == towerData then
-				Hub.RecordBoostLinkAction(runtimeValue4, runtimeValue5)
+			if label and State.Recording and value.Parent == towerData and result.Parent == towerData then
+				Hub.RecordBoostLinkAction(value, result)
 			end
 		end)
 		return true
 	end
 	local now = os.clock()
-	local runtimeValue9 = State.BoostIntents and State.BoostIntents[tostring(runtimeValue5.Name)]
-	local runtimeValue10 = runtimeValue9 and runtimeValue9.Session == State.RecordSession and runtimeValue9.Source == tostring(runtimeValue4.Name) and now - runtimeValue9.At <= 12 and runtimeValue9.RecordedAt or nil
-	if runtimeValue7.LastBoostSourceHandle == runtimeValue6.Handle and now - (runtimeValue7.LastBoostRecordedAt or - math.huge) <= 0.5 then
+	local textValue = State.BoostIntents and State.BoostIntents[tostring(result.Name)]
+	local indexValue = textValue and textValue.Session == State.RecordSession and textValue.Source == tostring(value.Name) and now - textValue.At <= 12 and textValue.RecordedAt or nil
+	if element.LastBoostSourceHandle == child.Handle and now - (element.LastBoostRecordedAt or - math.huge) <= 0.5 then
 		return true
 	end
-	runtimeValue7.LastBoostSourceHandle = runtimeValue6.Handle
-	runtimeValue7.LastBoostRecordedAt = now
+	element.LastBoostSourceHandle = child.Handle
+	element.LastBoostRecordedAt = now
 	pushAction({
 		Type = "BoostLink",
-		SourceHandle = runtimeValue6.Handle,
-		TargetHandle = runtimeValue7.Handle,
-		RecordedAt = runtimeValue10
+		SourceHandle = child.Handle,
+		TargetHandle = element.Handle,
+		RecordedAt = indexValue
 	})
 	return true
 end
@@ -903,58 +896,58 @@ local function installSkillRouter()
 		env.KeroSkibidiSkillRouter = keroSkibidiSkillRouter
 	end
 	keroSkibidiSkillRouter.Ability, keroSkibidiSkillRouter.Boost = Remotes.Ability, Remotes.BoostSelect
-	keroSkibidiSkillRouter.Begin = function(parameter, parameter2, parameter3)
+	keroSkibidiSkillRouter.Begin = function(data, options, callback)
 		if not State.Running or not State.Recording or State.Playing then
 			return
 		end
-		if type(parameter2) ~= "string" and type(parameter2) ~= "number" then
+		if type(options) ~= "string" and type(options) ~= "number" then
 			return
 		end
-		if parameter == "Ability" and (type(parameter3) ~= "number" or parameter3 < 1 or parameter3 % 1 ~= 0) then
+		if data == "Ability" and (type(callback) ~= "number" or callback < 1 or callback % 1 ~= 0) then
 			return
 		end
-		if parameter == "Boost" and type(parameter3) ~= "string" and type(parameter3) ~= "number" then
+		if data == "Boost" and type(callback) ~= "string" and type(callback) ~= "number" then
 			return
 		end
 		local now = os.clock()
-		local dataTable = {
+		local records = {
 			At = now,
 			RecordedAt = math.max(0, now - State.RecordStartedAt),
 			Session = State.RecordSession,
-			Id = tostring(parameter2),
-			Index = parameter3,
-			Source = tostring(parameter2)
+			Id = tostring(options),
+			Index = callback,
+			Source = tostring(options)
 		}
-		if parameter == "Ability" then
-			State.SkillIntents[dataTable.Id] = dataTable
+		if data == "Ability" then
+			State.SkillIntents[records.Id] = records
 		else
-			State.BoostIntents[tostring(parameter3)] = dataTable
+			State.BoostIntents[tostring(callback)] = records
 		end
-		return dataTable
+		return records
 	end
-	keroSkibidiSkillRouter.Finish = function(parameter, parameter2)
-		if not parameter then
+	keroSkibidiSkillRouter.Finish = function(data, options)
+		if not data then
 			return
 		end
-		if parameter2 == false then
-			parameter.Rejected = true
+		if options == false then
+			data.Rejected = true
 		end
-		if parameter2 ~= true then
+		if options ~= true then
 			return
 		end
 		task.defer(function()
-			if not State.Recording or State.RecordSession ~= parameter.Session then
+			if not State.Recording or State.RecordSession ~= data.Session then
 				return
 			end
-			local runtimeValue4 = towerData and towerData:FindFirstChild(parameter.Id)
-			local runtimeValue5 = runtimeValue4 and State.TowerMeta[runtimeValue4]
-			if not runtimeValue5 then
+			local value = towerData and towerData:FindFirstChild(data.Id)
+			local result = value and State.TowerMeta[value]
+			if not result then
 				return
 			end
-			local lastAbilityAction = runtimeValue5.LastAbilityAction
-			if lastAbilityAction and runtimeValue5.LastAbilityIntent == parameter then
-				lastAbilityAction.AbilityIndex = parameter.Index
-				lastAbilityAction.RecordedAt = parameter.RecordedAt
+			local lastAbilityAction = result.LastAbilityAction
+			if lastAbilityAction and result.LastAbilityIntent == data then
+				lastAbilityAction.AbilityIndex = data.Index
+				lastAbilityAction.RecordedAt = data.RecordedAt
 				lastAbilityAction.CaptureSource = "Remote"
 				return
 			end
@@ -962,38 +955,38 @@ local function installSkillRouter()
 			if not pendingAbility or os.clock() - pendingAbility.At > 3 then
 				pendingAbility = nil
 			end
-			Hub.RecordAbilityAction(runtimeValue4, parameter.Index, parameter.Marker or pendingAbility and pendingAbility.Marker, {
+			Hub.RecordAbilityAction(value, data.Index, data.Marker or pendingAbility and pendingAbility.Marker, {
 				Title = pendingAbility and pendingAbility.Title,
 				Cost = pendingAbility and pendingAbility.Cost,
 				Card = pendingAbility and pendingAbility.Card,
 				Cooldown = pendingAbility and pendingAbility.Cooldown,
-				RecordedAt = parameter.RecordedAt,
+				RecordedAt = data.RecordedAt,
 				RemoteIntent = true,
-				CapturedIntent = parameter
+				CapturedIntent = data
 			})
 		end)
 	end
 	if keroSkibidiSkillRouter.Installed then
 		return
 	end
-	local function utilityRoutine(parameter, self, ...)
-		local runtimeValue4 = coroutine.running()
-		if keroSkibidiSkillRouter.Bypass[runtimeValue4] then
-			return parameter(self, ...)
+	local function helperFunction(data, self, ...)
+		local value = coroutine.running()
+		if keroSkibidiSkillRouter.Bypass[value] then
+			return data(self, ...)
 		end
-		local runtimeValue5 = self == keroSkibidiSkillRouter.Ability and "Ability" or self == keroSkibidiSkillRouter.Boost and "Boost" or nil
-		if not runtimeValue5 then
-			return parameter(self, ...)
+		local result = self == keroSkibidiSkillRouter.Ability and "Ability" or self == keroSkibidiSkillRouter.Boost and "Boost" or nil
+		if not result then
+			return data(self, ...)
 		end
-		local ok2, result2 = pcall(keroSkibidiSkillRouter.Begin, runtimeValue5, ...)
+		local ok2, result2 = pcall(keroSkibidiSkillRouter.Begin, result, ...)
 		if not ok2 or not result2 then
-			return parameter(self, ...)
+			return data(self, ...)
 		end
-		keroSkibidiSkillRouter.Bypass[runtimeValue4] = true
+		keroSkibidiSkillRouter.Bypass[value] = true
 		keroSkibidiSkillRouter.Pending = (keroSkibidiSkillRouter.Pending or 0) + 1
-		local result3 = table.pack(pcall(parameter, self, ...))
-		keroSkibidiSkillRouter.Bypass[runtimeValue4] = nil
-		if result3[1] and runtimeValue5 == "Ability" then
+		local result3 = table.pack(pcall(data, self, ...))
+		keroSkibidiSkillRouter.Bypass[value] = nil
+		if result3[1] and result == "Ability" then
 			pcall(keroSkibidiSkillRouter.Finish, result2, result3[2])
 		end
 		keroSkibidiSkillRouter.Pending = keroSkibidiSkillRouter.Pending - 1
@@ -1002,26 +995,26 @@ local function installSkillRouter()
 		end
 		return table.unpack(result3, 2, result3.n)
 	end
-	local runtimeValue6 = type(newcclosure) == "function" and newcclosure or function(parameter)
-		return parameter
+	local child = type(newcclosure) == "function" and newcclosure or function(data)
+		return data
 	end
 	if type(hookmetamethod) == "function" and type(getnamecallmethod) == "function" then
-		local runtimeValue7
+		local element
 		local ok3 = pcall(function()
-			local runtimeValue5 = runtimeValue6(function(self, ...)
-				local runtimeValue4 = getnamecallmethod()
-				if runtimeValue4 == "InvokeServer" or runtimeValue4 == "FireServer" then
-					return utilityRoutine(runtimeValue7, self, ...)
+			local result = child(function(self, ...)
+				local value = getnamecallmethod()
+				if value == "InvokeServer" or value == "FireServer" then
+					return helperFunction(element, self, ...)
 				end
-				return runtimeValue7(self, ...)
+				return element(self, ...)
 			end)
 			local cobalt = env.Cobalt
-			local runtimeValue8 = cobalt and cobalt.shared
-			local runtimeValue9 = runtimeValue8 and runtimeValue8.Hooking
-			if runtimeValue9 and type(runtimeValue9.HookMetaMethod) == "function" then
-				runtimeValue7 = runtimeValue9.HookMetaMethod(game, "__namecall", runtimeValue5)
+			local label = cobalt and cobalt.shared
+			local textValue = label and label.Hooking
+			if textValue and type(textValue.HookMetaMethod) == "function" then
+				element = textValue.HookMetaMethod(game, "__namecall", result)
 			else
-				runtimeValue7 = hookmetamethod(game, "__namecall", runtimeValue5)
+				element = hookmetamethod(game, "__namecall", result)
 			end
 		end)
 		keroSkibidiSkillRouter.Namecall = ok3
@@ -1031,11 +1024,11 @@ local function installSkillRouter()
 			Remotes.Ability,
 			Remotes.BoostSelect
 		}) do
-			local runtimeValue10
+			local indexValue
 			local ok4 = pcall(function()
-				local runtimeValue4 = item == Remotes.Ability and item.InvokeServer or item.FireServer
-				runtimeValue10 = hookfunction(runtimeValue4, runtimeValue6(function(self, ...)
-					return utilityRoutine(runtimeValue10, self, ...)
+				local value = item == Remotes.Ability and item.InvokeServer or item.FireServer
+				indexValue = hookfunction(value, child(function(self, ...)
+					return helperFunction(indexValue, self, ...)
 				end))
 			end)
 			if ok4 then
@@ -1050,10 +1043,10 @@ local function installSkillRouter()
 	})
 end
 -- Tower tracking and action recording
-local function guessAbilityIndex(parameter)
-	local runtimeValue4 = parameter
+local function guessAbilityIndex(data)
+	local value = data
 	for _ = 1, 4 do
-		if not runtimeValue4 then
+		if not value then
 			break
 		end
 		for _, item in ipairs({
@@ -1062,74 +1055,74 @@ local function guessAbilityIndex(parameter)
 			"Index",
 			"Slot"
 		}) do
-			local num = tonumber(runtimeValue4:GetAttribute(item))
+			local num = tonumber(value:GetAttribute(item))
 			if num and num >= 1 then
 				return math.floor(num)
 			end
 		end
-		local num2 = tonumber(tostring(runtimeValue4.Name):match("(%d+)$"))
+		local num2 = tonumber(tostring(value.Name):match("(%d+)$"))
 		if num2 and num2 >= 1 then
 			return math.floor(num2)
 		end
-		if runtimeValue4:IsA("GuiObject") and runtimeValue4.LayoutOrder > 0 then
-			return runtimeValue4.LayoutOrder
+		if value:IsA("GuiObject") and value.LayoutOrder > 0 then
+			return value.LayoutOrder
 		end
-		runtimeValue4 = runtimeValue4.Parent
+		value = value.Parent
 	end
 	return 1
 end
 local function isOwnTower(tower)
 	return tower and tower.Parent == towerData and tower:GetAttribute("Creator") == LocalPlayer.Name
 end
-local function waitForTowerModel(parameter, parameter2)
+local function waitForTowerModel(data, options)
 	if not towerModels then
 		return nil
 	end
-	local runtimeValue4
+	local value
 	waitUntil(function()
-		runtimeValue4 = towerModels:FindFirstChild(tostring(parameter))
-		return runtimeValue4
-	end, parameter2 or 2, 0.05)
-	return runtimeValue4
+		value = towerModels:FindFirstChild(tostring(data))
+		return value
+	end, options or 2, 0.05)
+	return value
 end
-local function getTowerCFrame(parameter)
-	local runtimeValue4 = State.RecordPlacementReceipts and State.RecordPlacementReceipts[tostring(parameter.Name)]
-	if runtimeValue4 and runtimeValue4.Unit == tostring(parameter:GetAttribute("ID")) then
-		return runtimeValue4.CFrame
+local function getTowerCFrame(data)
+	local value = State.RecordPlacementReceipts and State.RecordPlacementReceipts[tostring(data.Name)]
+	if value and value.Unit == tostring(data:GetAttribute("ID")) then
+		return value.CFrame
 	end
-	local boostPos = parameter:GetAttribute("BoostPos")
-	local runtimeValue5 = towerModels and towerModels:FindFirstChild(tostring(parameter.Name))
-	if typeof(boostPos) ~= "Vector3" and not runtimeValue5 then
-		runtimeValue5 = waitForTowerModel(parameter.Name, 2)
+	local boostPos = data:GetAttribute("BoostPos")
+	local result = towerModels and towerModels:FindFirstChild(tostring(data.Name))
+	if typeof(boostPos) ~= "Vector3" and not result then
+		result = waitForTowerModel(data.Name, 2)
 	end
 	if typeof(boostPos) == "Vector3" then
-		local runtimeValue6 = CFrame.identity
-		if runtimeValue5 and runtimeValue5:IsA("Model") then
-			local ok2, result2 = pcall(runtimeValue5.GetPivot, runtimeValue5)
+		local child = CFrame.identity
+		if result and result:IsA("Model") then
+			local ok2, result2 = pcall(result.GetPivot, result)
 			if ok2 then
-				runtimeValue6 = result2.Rotation
+				child = result2.Rotation
 			end
 		end
-		return CFrame.new(boostPos) * runtimeValue6
+		return CFrame.new(boostPos) * child
 	end
 	return nil
 end
-local function isDefaultTargetMode(parameter)
-	if parameter == nil then
+local function isDefaultTargetMode(data)
+	if data == nil then
 		return true
 	end
-	local runtimeValue4 = tostring(parameter):upper():gsub("%s+", "")
-	return runtimeValue4 == "" or runtimeValue4 == "N/A" or runtimeValue4 == "NA" or runtimeValue4 == "NONE"
+	local value = tostring(data):upper():gsub("%s+", "")
+	return value == "" or value == "N/A" or value == "NA" or value == "NONE"
 end
-local function matchUpgradeCosts(parameter)
-	local upgradeActionQueue, upgradeCostQueue = parameter.UpgradeActionQueue, parameter.UpgradeCostQueue
+local function matchUpgradeCosts(data)
+	local upgradeActionQueue, upgradeCostQueue = data.UpgradeActionQueue, data.UpgradeCostQueue
 	while # upgradeActionQueue > 0 and # upgradeCostQueue > 0 do
-		local runtimeValue4, runtimeValue5 = upgradeActionQueue[1], upgradeCostQueue[1]
-		if math.abs(runtimeValue4.At - runtimeValue5.At) <= 1 then
-			runtimeValue4.Action.EstimatedCost = runtimeValue5.Value
+		local value, result = upgradeActionQueue[1], upgradeCostQueue[1]
+		if math.abs(value.At - result.At) <= 1 then
+			value.Action.EstimatedCost = result.Value
 			table.remove(upgradeActionQueue, 1)
 			table.remove(upgradeCostQueue, 1)
-		elseif runtimeValue4.At < runtimeValue5.At then
+		elseif value.At < result.At then
 			table.remove(upgradeActionQueue, 1)
 		else
 			table.remove(upgradeCostQueue, 1)
@@ -1146,7 +1139,7 @@ local function trackTower(tower, handle)
 	if State.TowerMeta[tower] then
 		return
 	end
-	local dataTable = {
+	local records = {
 		Handle = handle,
 		Session = State.RecordSession,
 		Level = tonumber(tower:GetAttribute("Upgrade")) or 0,
@@ -1167,80 +1160,80 @@ local function trackTower(tower, handle)
 	}
 	for index, item in pairs(tower:GetAttributes()) do
 		if tostring(index):match("^ATTACK") or isModeMarker(index) then
-			dataTable.AbilityMarkers[index] = item
+			records.AbilityMarkers[index] = item
 		end
 	end
-	State.TowerMeta[tower] = dataTable
-	local dataTable2 = {}
+	State.TowerMeta[tower] = records
+	local copiedData = {}
 	for index2, item3 in pairs(tower:GetAttributes()) do
-		dataTable2[index2] = sanitizeTraceValue(item3)
+		copiedData[index2] = sanitizeTraceValue(item3)
 	end
 	recorderTrace("tower_attached", {
 		Handle = handle,
 		RuntimeId = tower.Name,
-		Attributes = dataTable2
+		Attributes = copiedData
 	})
 	trackConnection(State.RecorderConnections, tower:GetAttributeChangedSignal("SellPrice"):Connect(function()
-		local runtimeValue4 = tonumber(tower:GetAttribute("SellPrice")) or dataTable.SellPrice
-		if runtimeValue4 > dataTable.SellPrice then
-			dataTable.PendingUpgradeCost = math.max(0, (runtimeValue4 - dataTable.SellPrice) * 2)
-			dataTable.LastUpgradeAt = os.clock()
-			if State.Recording and dataTable.Session == State.RecordSession then
-				table.insert(dataTable.UpgradeCostQueue, {
+		local value = tonumber(tower:GetAttribute("SellPrice")) or records.SellPrice
+		if value > records.SellPrice then
+			records.PendingUpgradeCost = math.max(0, (value - records.SellPrice) * 2)
+			records.LastUpgradeAt = os.clock()
+			if State.Recording and records.Session == State.RecordSession then
+				table.insert(records.UpgradeCostQueue, {
 					At = os.clock(),
-					Value = dataTable.PendingUpgradeCost
+					Value = records.PendingUpgradeCost
 				})
-				matchUpgradeCosts(dataTable)
+				matchUpgradeCosts(records)
 			end
 		end
-		dataTable.SellPrice = runtimeValue4
+		records.SellPrice = value
 	end))
 	trackConnection(State.RecorderConnections, tower:GetAttributeChangedSignal("Upgrade"):Connect(function()
-		local runtimeValue4 = tonumber(tower:GetAttribute("Upgrade")) or dataTable.Level
-		if State.Recording and dataTable.Session == State.RecordSession and runtimeValue4 > dataTable.Level then
-			dataTable.LastUpgradeAt = os.clock()
-			local dataTable3 = {
+		local value = tonumber(tower:GetAttribute("Upgrade")) or records.Level
+		if State.Recording and records.Session == State.RecordSession and value > records.Level then
+			records.LastUpgradeAt = os.clock()
+			local actionData = {
 				Type = "Upgrade",
-				Handle = dataTable.Handle,
-				FromLevel = dataTable.Level,
-				ToLevel = runtimeValue4,
-				EstimatedCost = dataTable.PendingUpgradeCost or 0
+				Handle = records.Handle,
+				FromLevel = records.Level,
+				ToLevel = value,
+				EstimatedCost = records.PendingUpgradeCost or 0
 			}
-			queueTowerAction(dataTable, dataTable3)
-			table.insert(dataTable.UpgradeActionQueue, {
+			queueTowerAction(records, actionData)
+			table.insert(records.UpgradeActionQueue, {
 				At = os.clock(),
-				Action = dataTable3
+				Action = actionData
 			})
-			matchUpgradeCosts(dataTable)
+			matchUpgradeCosts(records)
 		end
-		dataTable.Level = runtimeValue4
-		dataTable.PendingUpgradeCost = nil
+		records.Level = value
+		records.PendingUpgradeCost = nil
 	end))
 	trackConnection(State.RecorderConnections, tower:GetAttributeChangedSignal("TargetMode"):Connect(function()
 		local targetMode = tower:GetAttribute("TargetMode")
-		local targetMode2 = dataTable.TargetMode
-		local runtimeValue4 = isDefaultTargetMode(targetMode2) and os.clock() - dataTable.LastUpgradeAt <= 0.5
-		if State.Recording and dataTable.Session == State.RecordSession and targetMode and targetMode ~= targetMode2 and not runtimeValue4 then
-			queueTowerAction(dataTable, {
+		local targetMode2 = records.TargetMode
+		local value = isDefaultTargetMode(targetMode2) and os.clock() - records.LastUpgradeAt <= 0.5
+		if State.Recording and records.Session == State.RecordSession and targetMode and targetMode ~= targetMode2 and not value then
+			queueTowerAction(records, {
 				Type = "Target",
-				Handle = dataTable.Handle,
+				Handle = records.Handle,
 				Mode = targetMode
 			})
 		end
-		dataTable.TargetMode = targetMode
+		records.TargetMode = targetMode
 	end))
 	trackConnection(State.RecorderConnections, tower:GetAttributeChangedSignal("ClockBoost"):Connect(function()
-		local clockBoost = dataTable.ClockBoost
+		local clockBoost = records.ClockBoost
 		local clockBoost2 = tower:GetAttribute("ClockBoost")
-		dataTable.ClockBoost = clockBoost2
+		records.ClockBoost = clockBoost2
 		if not State.Recording or clockBoost2 == nil or tostring(clockBoost2) == "" or tostring(clockBoost2) == "0" or tostring(clockBoost2) == tostring(clockBoost) then
 			return
 		end
 		Hub.RecordBoostLinkAction(clockBoost2, tower)
 	end))
-	trackConnection(State.RecorderConnections, tower.AttributeChanged:Connect(function(parameter)
-		if State.Recording and dataTable.Session == State.RecordSession then
-			local dataTable3 = {
+	trackConnection(State.RecorderConnections, tower.AttributeChanged:Connect(function(data)
+		if State.Recording and records.Session == State.RecordSession then
+			local actionData = {
 				Damage = true,
 				CurrentTarget = true,
 				Stun = true,
@@ -1249,58 +1242,58 @@ local function trackTower(tower, handle)
 				StunTime = true,
 				StunAccum = true
 			}
-			if not dataTable3[parameter] then
+			if not actionData[data] then
 				recorderTrace("tower_attribute", {
-					Handle = dataTable.Handle,
-					Key = parameter,
-					Value = sanitizeTraceValue(tower:GetAttribute(parameter))
+					Handle = records.Handle,
+					Key = data,
+					Value = sanitizeTraceValue(tower:GetAttribute(data))
 				})
 			end
 		end
-		if not tostring(parameter):match("^ATTACK") and not isModeMarker(parameter) then
+		if not tostring(data):match("^ATTACK") and not isModeMarker(data) then
 			return
 		end
-		local runtimeValue4 = dataTable.AbilityMarkers[parameter]
-		local runtimeValue5 = tower:GetAttribute(parameter)
-		dataTable.AbilityMarkers[parameter] = runtimeValue5
-		if not State.Recording or dataTable.Session ~= State.RecordSession or runtimeValue4 == runtimeValue5 then
+		local value = records.AbilityMarkers[data]
+		local result = tower:GetAttribute(data)
+		records.AbilityMarkers[data] = result
+		if not State.Recording or records.Session ~= State.RecordSession or value == result then
 			return
 		end
 		local pendingAbility = State.PendingAbility
-		local runtimeValue6 = State.SkillIntents and State.SkillIntents[tostring(tower.Name)]
-		local runtimeValue7 = pendingAbility and pendingAbility.Marker == parameter and os.clock() - pendingAbility.At <= 3 or runtimeValue6 and not runtimeValue6.Rejected and runtimeValue6.Session == State.RecordSession and os.clock() - runtimeValue6.At <= 12
-		if not isModeMarker(parameter) and not abilityStateChanged(runtimeValue4, runtimeValue5, runtimeValue7) then
+		local child = State.SkillIntents and State.SkillIntents[tostring(tower.Name)]
+		local element = pendingAbility and pendingAbility.Marker == data and os.clock() - pendingAbility.At <= 3 or child and not child.Rejected and child.Session == State.RecordSession and os.clock() - child.At <= 12
+		if not isModeMarker(data) and not abilityStateChanged(value, result, element) then
 			return
 		end
-		if parameter == "SwitchModeState" and runtimeValue4 == nil and runtimeValue5 ~= 2 then
+		if data == "SwitchModeState" and value == nil and result ~= 2 then
 			return
 		end
-		if parameter == "AttackMode" and (runtimeValue4 == nil or type(runtimeValue5) ~= "number" or runtimeValue5 < 1 or runtimeValue5 > 3) then
+		if data == "AttackMode" and (value == nil or type(result) ~= "number" or result < 1 or result > 3) then
 			return
 		end
 		task.defer(function()
-			if not State.Recording or dataTable.Session ~= State.RecordSession then
+			if not State.Recording or records.Session ~= State.RecordSession then
 				return
 			end
-			local ok2, result2 = pcall(resolveAbilityCard, parameter)
+			local ok2, result2 = pcall(resolveAbilityCard, data)
 			if not ok2 or not result2 then
 				recorderTrace("unmapped_activation", {
-					Handle = dataTable.Handle,
-					Marker = parameter,
+					Handle = records.Handle,
+					Marker = data,
 					Reason = not ok2 and tostring(result2) or "No known native skill mapping"
 				})
 				return
 			end
-			local dataTable4 = {
+			local abilityData = {
 				Title = result2.Title,
 				Card = result2.Card,
 				Cost = result2.Cost,
 				Cooldown = result2.Cooldown,
 				CooldownFloor = result2.CooldownFloor,
-				ConfirmedValue = runtimeValue5,
-				PreviousValue = runtimeValue4
+				ConfirmedValue = result,
+				PreviousValue = value
 			}
-			Hub.RecordAbilityAction(tower, result2.Index, parameter, dataTable4)
+			Hub.RecordAbilityAction(tower, result2.Index, data, abilityData)
 		end)
 	end))
 end
@@ -1343,24 +1336,24 @@ local function startRecording(profileName)
 	end
 	State.RecordPlacementReceipts, State.RecordPlacementActions = {}, {}
 	local ok2, result2 = pcall(function()
-		return Remotes.Place.OnClientEvent:Connect(function(parameter, parameter2, parameter3, parameter4)
-			if not State.Recording or State.RecordSession ~= recordSession or parameter ~= LocalPlayer or typeof(parameter3) ~= "CFrame" or type(parameter4) ~= "number" and type(parameter4) ~= "string" then
+		return Remotes.Place.OnClientEvent:Connect(function(data, options, callback, context)
+			if not State.Recording or State.RecordSession ~= recordSession or data ~= LocalPlayer or typeof(callback) ~= "CFrame" or type(context) ~= "number" and type(context) ~= "string" then
 				return
 			end
 			if Hub.MatchFlow then
 				Hub.MatchFlow.UpdateRecorderClock()
 			end
-			local str = tostring(parameter4)
-			local dataTable = {
-				Unit = tostring(parameter2),
-				CFrame = parameter3,
+			local str = tostring(context)
+			local records = {
+				Unit = tostring(options),
+				CFrame = callback,
 				RecordedAt = os.clock() - State.RecordStartedAt
 			}
-			State.RecordPlacementReceipts[str] = dataTable
-			local runtimeValue4 = State.RecordPlacementActions[str]
-			if runtimeValue4 and runtimeValue4.Unit == dataTable.Unit then
-				runtimeValue4.CFrame, runtimeValue4.PlacementSpace = cframeToArray(parameter3), "Ground"
-				runtimeValue4.RecordedAt = dataTable.RecordedAt
+			State.RecordPlacementReceipts[str] = records
+			local value = State.RecordPlacementActions[str]
+			if value and value.Unit == records.Unit then
+				value.CFrame, value.PlacementSpace = cframeToArray(callback), "Ground"
+				value.RecordedAt = records.RecordedAt
 			end
 		end)
 	end)
@@ -1368,48 +1361,48 @@ local function startRecording(profileName)
 		trackConnection(State.RecorderConnections, result2)
 	end
 	local playerGui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
-	local dataTable2 = setmetatable({}, {
+	local copiedData = setmetatable({}, {
 		__mode = "k"
 	})
-	local function utilityRoutine(parameter)
-		if dataTable2[parameter] or not parameter:IsA("GuiObject") then
+	local function helperFunction(data)
+		if copiedData[data] or not data:IsA("GuiObject") then
 			return
 		end
-		local runtimeValue4, stateFlag = parameter, false
+		local value, isActive = data, false
 		for _ = 1, 12 do
-			if not runtimeValue4 then
+			if not value then
 				break
 			end
-			if runtimeValue4.Name == "Abilities" then
-				stateFlag = true
+			if value.Name == "Abilities" then
+				isActive = true
 				break
 			end
-			runtimeValue4 = runtimeValue4.Parent
+			value = value.Parent
 		end
-		if not stateFlag then
+		if not isActive then
 			return
 		end
-		dataTable2[parameter] = true
-		trackConnection(State.RecorderConnections, parameter.InputBegan:Connect(function(parameter2)
-			if State.Recording and State.RecordSession == recordSession and (parameter2.UserInputType == Enum.UserInputType.MouseButton1 or parameter2.UserInputType == Enum.UserInputType.Touch) then
-				onAbilityCardClicked(parameter)
+		copiedData[data] = true
+		trackConnection(State.RecorderConnections, data.InputBegan:Connect(function(options)
+			if State.Recording and State.RecordSession == recordSession and (options.UserInputType == Enum.UserInputType.MouseButton1 or options.UserInputType == Enum.UserInputType.Touch) then
+				onAbilityCardClicked(data)
 			end
 		end))
 	end
 	if playerGui then
 		for _, item in ipairs(playerGui:GetDescendants()) do
-			utilityRoutine(item)
+			helperFunction(item)
 		end
-		trackConnection(State.RecorderConnections, playerGui.DescendantAdded:Connect(utilityRoutine))
-		trackConnection(State.RecorderConnections, game:GetService("UserInputService").InputBegan:Connect(function(parameter)
+		trackConnection(State.RecorderConnections, playerGui.DescendantAdded:Connect(helperFunction))
+		trackConnection(State.RecorderConnections, game:GetService("UserInputService").InputBegan:Connect(function(data)
 			if not State.Recording or State.RecordSession ~= recordSession then
 				return
 			end
-			if parameter.UserInputType ~= Enum.UserInputType.MouseButton1 and parameter.UserInputType ~= Enum.UserInputType.Touch then
+			if data.UserInputType ~= Enum.UserInputType.MouseButton1 and data.UserInputType ~= Enum.UserInputType.Touch then
 				return
 			end
-			local ok3, result3 = pcall(playerGui.GetGuiObjectsAtPosition, playerGui, parameter.Position.X, parameter.Position.Y)
-			local dataTable = {}
+			local ok3, result3 = pcall(playerGui.GetGuiObjectsAtPosition, playerGui, data.Position.X, data.Position.Y)
+			local records = {}
 			if ok3 then
 				for index, item3 in ipairs(result3) do
 					if index > 12 then
@@ -1419,20 +1412,20 @@ local function startRecording(profileName)
 					pcall(function()
 						name = item3:GetFullName():gsub("Players%.[^%.]+%.", "Players.Local.")
 					end)
-					local runtimeValue4 = ""
+					local value = ""
 					if item3:IsA("TextLabel") or item3:IsA("TextButton") then
-						runtimeValue4 = item3.Text
+						value = item3.Text
 					end
-					dataTable[# dataTable + 1] = {
+					records[# records + 1] = {
 						Path = name,
 						Class = item3.ClassName,
-						Text = tostring(runtimeValue4):sub(1, 120)
+						Text = tostring(value):sub(1, 120)
 					}
 				end
 			end
 			recorderTrace("pointer_input", {
 				HitTestOK = ok3,
-				Hits = dataTable
+				Hits = records
 			})
 			if ok3 then
 				for _, item4 in ipairs(result3) do
@@ -1450,70 +1443,70 @@ local function startRecording(profileName)
 			count = count + 1
 		end
 	end
-	trackConnection(State.RecorderConnections, towerData.ChildAdded:Connect(function(parameter)
+	trackConnection(State.RecorderConnections, towerData.ChildAdded:Connect(function(data)
 		if Hub.MatchFlow then
 			Hub.MatchFlow.UpdateRecorderClock()
 		end
-		local runtimeValue4 = os.clock() - State.RecordStartedAt
+		local value = os.clock() - State.RecordStartedAt
 		task.spawn(function()
-			local runtimeValue5 = waitUntil(function()
-				return isOwnTower(parameter) and parameter:GetAttribute("ID") ~= nil
+			local result = waitUntil(function()
+				return isOwnTower(data) and data:GetAttribute("ID") ~= nil
 			end, 5, 0.05)
-			if not runtimeValue5 or not State.Recording or State.RecordSession ~= recordSession then
+			if not result or not State.Recording or State.RecordSession ~= recordSession then
 				return
 			end
-			local runtimeValue6 = "T" .. State.NextHandle
+			local child = "T" .. State.NextHandle
 			State.NextHandle = State.NextHandle + 1
-			trackTower(parameter, runtimeValue6)
-			local runtimeValue7 = getTowerCFrame(parameter)
-			if not runtimeValue7 then
-				setStatus("Record warning", "Could not read placement CFrame for tower " .. parameter.Name)
+			trackTower(data, child)
+			local element = getTowerCFrame(data)
+			if not element then
+				setStatus("Record warning", "Could not read placement CFrame for tower " .. data.Name)
 				return
 			end
 			if not State.Recording or State.RecordSession ~= recordSession then
 				return
 			end
-			local runtimeValue8 = tonumber(parameter:GetAttribute("SellPrice")) or 0
-			local runtimeValue9 = State.RecordPlacementReceipts[tostring(parameter.Name)]
-			local dataTable = {
+			local label = tonumber(data:GetAttribute("SellPrice")) or 0
+			local textValue = State.RecordPlacementReceipts[tostring(data.Name)]
+			local records = {
 				Type = "Place",
-				Handle = runtimeValue6,
-				Unit = tostring(parameter:GetAttribute("ID")),
-				CFrame = cframeToArray(runtimeValue7),
+				Handle = child,
+				Unit = tostring(data:GetAttribute("ID")),
+				CFrame = cframeToArray(element),
 				PlacementSpace = "Ground",
-				RecordedAt = runtimeValue9 and runtimeValue9.RecordedAt or runtimeValue4,
-				EstimatedCost = runtimeValue8 * 2
+				RecordedAt = textValue and textValue.RecordedAt or value,
+				EstimatedCost = label * 2
 			}
-			State.RecordPlacementActions[tostring(parameter.Name)] = dataTable
-			pushAction(dataTable)
-			local runtimeValue10 = State.TowerMeta[parameter]
-			if runtimeValue10 then
-				runtimeValue10.PlaceRecorded = true
-				for _, item3 in ipairs(runtimeValue10.PendingActions or {}) do
+			State.RecordPlacementActions[tostring(data.Name)] = records
+			pushAction(records)
+			local indexValue = State.TowerMeta[data]
+			if indexValue then
+				indexValue.PlaceRecorded = true
+				for _, item3 in ipairs(indexValue.PendingActions or {}) do
 					pushAction(item3)
 				end
-				runtimeValue10.PendingActions = nil
+				indexValue.PendingActions = nil
 			end
 		end)
 	end))
-	trackConnection(State.RecorderConnections, towerData.ChildRemoved:Connect(function(parameter)
-		local runtimeValue4 = State.TowerMeta[parameter]
-		if not runtimeValue4 then
+	trackConnection(State.RecorderConnections, towerData.ChildRemoved:Connect(function(data)
+		local value = State.TowerMeta[data]
+		if not value then
 			return
 		end
 		task.delay(0.15, function()
 			if State.Recording and State.RecordSession == recordSession and not isMatchEnded() then
 				pushAction({
 					Type = "Sell",
-					Handle = runtimeValue4.Handle
+					Handle = value.Handle
 				})
 			end
 		end)
 	end))
-	local runtimeValue11 = getGameEndedGui()
-	if runtimeValue11 then
-		trackConnection(State.RecorderConnections, runtimeValue11:GetPropertyChangedSignal("Enabled"):Connect(function()
-			if State.Recording and runtimeValue11.Enabled then
+	local cachedValue = getGameEndedGui()
+	if cachedValue then
+		trackConnection(State.RecorderConnections, cachedValue:GetPropertyChangedSignal("Enabled"):Connect(function()
+			if State.Recording and cachedValue.Enabled then
 				task.defer(function()
 					if State.Recording then
 						stopRecording(true)
@@ -1530,7 +1523,7 @@ local function startRecording(profileName)
 	end
 	return true
 end
-stopRecording = function(parameter)
+stopRecording = function(data)
 	if not State.Recording then
 		return false, "Recorder is not running"
 	end
@@ -1545,16 +1538,16 @@ stopRecording = function(parameter)
 		pcall(sampleAbilityCooldown, item)
 	end
 	State.Recording = false
-	local dataTable = {}
+	local records = {}
 	for index, item3 in ipairs(State.Actions) do
-		dataTable[item3] = index
+		records[item3] = index
 	end
-	table.sort(State.Actions, function(parameter2, parameter3)
-		local runtimeValue4, runtimeValue5 = tonumber(parameter2.RecordedAt) or 0, tonumber(parameter3.RecordedAt) or 0
-		if runtimeValue4 == runtimeValue5 then
-			return dataTable[parameter2] < dataTable[parameter3]
+	table.sort(State.Actions, function(options, callback)
+		local value, result = tonumber(options.RecordedAt) or 0, tonumber(callback.RecordedAt) or 0
+		if value == result then
+			return records[options] < records[callback]
 		end
-		return runtimeValue4 < runtimeValue5
+		return value < result
 	end)
 	if UI.SetRecordToggle then
 		UI.SetRecordToggle(false)
@@ -1566,7 +1559,7 @@ stopRecording = function(parameter)
 			State.RecorderDebugFile = result2
 		end
 	end
-	if parameter then
+	if data then
 		local value, value1 = saveProfile(State.ProfileName)
 		if not value then
 			setStatus("Save failed", value1)
@@ -1588,183 +1581,220 @@ end
 local function flatDistance(a, b)
 	return (Vector3.new(a.X, 0, a.Z) - Vector3.new(b.X, 0, b.Z)).Magnitude
 end
-local function getActionCFrame(parameter)
-	local runtimeValue4 = arrayToCFrame(parameter.CFrame)
-	if not runtimeValue4 or parameter.PlacementSpace == "Ground" then
-		return runtimeValue4
+local function getActionCFrame(data)
+	local value = arrayToCFrame(data.CFrame)
+	if not value or data.PlacementSpace == "Ground" then
+		return value
 	end
-	local copy = table.clone(parameter.CFrame)
+	local copy = table.clone(data.CFrame)
 	copy[2] = tonumber(copy[2]) - 4.7
 	return arrayToCFrame(copy)
 end
-local function findRuntimeTower(parameter, parameter2)
+local function findRuntimeTower(data, options)
 	if not towerData then
 		return nil
 	end
-	local runtimeValue4 = getActionCFrame(parameter)
-	if not runtimeValue4 then
+	local value = getActionCFrame(data)
+	if not value then
 		return nil
 	end
-	local runtimeValue5
+	local result
 	for _, item in ipairs(towerData:GetChildren()) do
-		if isOwnTower(item) and not State.UsedRuntimeTowers[item] and (not parameter2 or not parameter2[item]) and tostring(item:GetAttribute("ID")) == tostring(parameter.Unit) then
+		if isOwnTower(item) and not State.UsedRuntimeTowers[item] and (not options or not options[item]) and tostring(item:GetAttribute("ID")) == tostring(data.Unit) then
 			local boostPos = item:GetAttribute("BoostPos")
-			if typeof(boostPos) == "Vector3" and flatDistance(boostPos, runtimeValue4.Position) <= 0.35 and math.abs(boostPos.Y - runtimeValue4.Position.Y) <= 1 then
-				if runtimeValue5 then
+			if typeof(boostPos) == "Vector3" and flatDistance(boostPos, value.Position) <= 0.35 and math.abs(boostPos.Y - value.Position.Y) <= 1 then
+				if result then
 					return nil, "Multiple matching towers at the recorded position"
 				end
-				runtimeValue5 = item
+				result = item
 			end
 		end
 	end
-	return runtimeValue5
+	return result
 end
 local function isPlaying(session)
 	return State.Running and State.Playing and (session == nil or State.PlaySession == session)
 end
+-- Every temporary signal created by Playback belongs to one session.
+-- This guarantees cleanup on normal completion, cancellation, or errors.
+local function trackPlaybackConnection(session, connection)
+	if connection and type(session) == "table" then
+		session.Connections = session.Connections or {}
+		table.insert(session.Connections, connection)
+	end
+	return connection
+end
+local function disconnectPlaybackConnection(session, connection)
+	if not connection then
+		return
+	end
+	pcall(function()
+		connection:Disconnect()
+	end)
+	if type(session) == "table" and type(session.Connections) == "table" then
+		for index = #session.Connections, 1, -1 do
+			if session.Connections[index] == connection then
+				table.remove(session.Connections, index)
+			end
+		end
+	end
+end
+local function cleanupPlaybackSession(session)
+	if type(session) ~= "table" then
+		return
+	end
+	session.Cancelled = true
+	if type(session.Connections) == "table" then
+		disconnectAll(session.Connections)
+	else
+		session.Connections = {}
+	end
+end
 local function waitForActionTime(action, startedAt, session)
-	local runtimeValue4 = tonumber(action.RecordedAt) or 0
-	local runtimeValue5 = tonumber(action.EstimatedCost) or 0
+	local value = tonumber(action.RecordedAt) or 0
+	local result = tonumber(action.EstimatedCost) or 0
 	local _ = tonumber(action.Wave) or 0
 	return waitUntil(function()
 		if not isPlaying(session) or isMatchEnded() then
 			return true
 		end
-		local runtimeValue6 = os.clock() - startedAt
-		local runtimeValue7 = runtimeValue6 >= runtimeValue4
-		local runtimeValue8 = runtimeValue5 <= 0 or getMoney() >= runtimeValue5
-		local runtimeValue9 = action.Type == "Upgrade" and State.RuntimeHandles[action.Handle]
-		if runtimeValue9 and runtimeValue9.Parent == towerData and (tonumber(runtimeValue9:GetAttribute("Upgrade")) or 0) >= (tonumber(action.ToLevel) or (tonumber(action.FromLevel) or 0) + 1) then
-			runtimeValue8 = true
+		local child = os.clock() - startedAt
+		local element = child >= value
+		local label = result <= 0 or getMoney() >= result
+		local textValue = action.Type == "Upgrade" and State.RuntimeHandles[action.Handle]
+		if textValue and textValue.Parent == towerData and (tonumber(textValue:GetAttribute("Upgrade")) or 0) >= (tonumber(action.ToLevel) or (tonumber(action.FromLevel) or 0) + 1) then
+			label = true
 		end
 		if State.PlaybackMode == "Time" then
-			return runtimeValue7
+			return element
 		elseif State.PlaybackMode == "Money" then
-			return runtimeValue8
+			return label
 		end
-		return runtimeValue7 and runtimeValue8
+		return element and label
 	end, 600, 0.03)
 end
+-- Fix: playPlace previously shadowed the placement CFrame with findRuntimeTower's result.
+-- That caused the receipt-position check and placeTower remote to receive a Model/nil instead of a CFrame.
 local function playPlace(action, session)
-	local runtimeValue4 = getActionCFrame(action)
-	if not runtimeValue4 then
+	local placementCFrame = getActionCFrame(action)
+	if not placementCFrame then
 		return false, "Invalid placement CFrame"
 	end
-	local runtimeValue5 = os.clock() + 180
-	local runtimeValue6 = tonumber(action.EstimatedCost) or 0
+	local result = os.clock() + 180
+	local requiredCost = math.max(0, tonumber(action.EstimatedCost) or tonumber(action.Cost) or 0)
 	local count = 0
-	local dataTable = {}
+	local records = {}
 	for _, item in ipairs(towerData:GetChildren()) do
-		dataTable[item] = true
+		records[item] = true
 	end
-	while isPlaying(session) and os.clock() < runtimeValue5 and not isMatchEnded() do
-		if getMoney() >= runtimeValue6 then
-			local runtimeValue7 = dataTable
-			local value, value1 = findRuntimeTower(action, runtimeValue7)
-			if value then
-				State.RuntimeHandles[action.Handle] = value
-				State.UsedRuntimeTowers[value] = true
+	while isPlaying(session) and os.clock() < result and not isMatchEnded() do
+		if getMoney() >= requiredCost then
+			local element = records
+			local existingTower, findError = findRuntimeTower(action, element)
+			if existingTower then
+				State.RuntimeHandles[action.Handle] = existingTower
+				State.UsedRuntimeTowers[existingTower] = true
 				return true
 			end
-			if value1 then
-				return false, value1
+			if findError then
+				return false, findError
 			end
 			if count >= 5 then
 				return false, "Placement unconfirmed after 5 attempts"
 			end
 			count = count + 1
-			local runtimeValue8 = getMoney()
-			local runtimeValue9, runtimeValue10, runtimeValue11, runtimeValue12, runtimeValue13
-			local dataTable2 = {}
-			for index in pairs(runtimeValue7) do
-				dataTable2[tostring(index.Name)] = true
+			local label = getMoney()
+			local textValue, indexValue, cachedValue, nextValue, currentValue
+			local copiedData = {}
+			for index in pairs(element) do
+				copiedData[tostring(index.Name)] = true
 			end
 			local ok2, result2 = pcall(function()
-				return Remotes.Place.OnClientEvent:Connect(function(parameter, parameter2, parameter3, parameter4)
-					if not isPlaying(session) or isMatchEnded() or parameter ~= LocalPlayer or tostring(parameter2) ~= tostring(action.Unit) or typeof(parameter3) ~= "CFrame" or type(parameter4) ~= "number" and type(parameter4) ~= "string" then
+				return trackPlaybackConnection(session, Remotes.Place.OnClientEvent:Connect(function(data, options, callback, context)
+					if not isPlaying(session) or isMatchEnded() or data ~= LocalPlayer or tostring(options) ~= tostring(action.Unit) or typeof(callback) ~= "CFrame" or type(context) ~= "number" and type(context) ~= "string" then
 						return
 					end
-					local str = tostring(parameter4)
-					if dataTable2[str] or str == "" then
+					local str = tostring(context)
+					if copiedData[str] or str == "" then
 						return
 					end
-					if flatDistance(parameter3.Position, runtimeValue4.Position) > 0.35 or math.abs(parameter3.Position.Y - runtimeValue4.Position.Y) > 1 then
+					if flatDistance(callback.Position, placementCFrame.Position) > 0.35 or math.abs(callback.Position.Y - placementCFrame.Position.Y) > 1 then
 						return
 					end
-					if runtimeValue9 and runtimeValue9 ~= str then
-						runtimeValue10 = true
+					if textValue and textValue ~= str then
+						indexValue = true
 					end
-					runtimeValue9 = str
-				end)
+					textValue = str
+				end))
 			end)
 			if ok2 then
-				runtimeValue11 = result2
+				cachedValue = result2
 			end
 			local ok3, result3 = pcall(function()
-				return Remotes.Notice.OnClientEvent:Connect(function(parameter)
-					local runtimeValue14 = type(parameter) == "table" and tostring(parameter.Text or "") or tostring(parameter)
-					local lowered = runtimeValue14:lower()
+				return trackPlaybackConnection(session, Remotes.Notice.OnClientEvent:Connect(function(data)
+					local entryValue = type(data) == "table" and tostring(data.Text or "") or tostring(data)
+					local lowered = entryValue:lower()
 					if lowered:find("place", 1, true) and (lowered:find("cash", 1, true) or lowered:find("money", 1, true)) and (lowered:find("need", 1, true) or lowered:find("enough", 1, true) or lowered:find("insufficient", 1, true)) then
-						runtimeValue13 = {
-							Text = runtimeValue14,
+						currentValue = {
+							Text = entryValue,
 							At = os.clock(),
 							Cash = getMoney()
 						}
 						if lowered:find("need more cash to place", 1, true) then
-							local num = tonumber(runtimeValue14:gsub(",", ""):match("%$([%d%.]+)"))
+							local num = tonumber(entryValue:gsub(",", ""):match("%$([%d%.]+)"))
 							if num then
-								runtimeValue6 = math.max(runtimeValue6, math.ceil(getMoney() + num))
+								requiredCost = math.max(requiredCost, math.ceil(getMoney() + num))
 							end
 						end
 					end
-				end)
+				end))
 			end)
 			if ok3 then
-				runtimeValue12 = result3
+				nextValue = result3
 			end
-			local ok4, result4 = pcall(Remotes.Place.FireServer, Remotes.Place, action.Unit, runtimeValue4, false)
-			local runtimeValue15
+			local ok4, result4 = pcall(Remotes.Place.FireServer, Remotes.Place, action.Unit, placementCFrame, false)
+			local pendingValue
 			local value3, value13 = waitUntil(function()
 				if not isPlaying(session) or isMatchEnded() then
 					return true
 				end
-				if runtimeValue10 then
-					runtimeValue15 = "Multiple placement receipts matched; no duplicate retry"
+				if indexValue then
+					pendingValue = "Multiple placement receipts matched; no duplicate retry"
 					return nil
 				end
-				if runtimeValue9 then
-					local runtimeValue14 = towerData:FindFirstChild(runtimeValue9)
-					if runtimeValue14 and isOwnTower(runtimeValue14) and not runtimeValue7[runtimeValue14] and not State.UsedRuntimeTowers[runtimeValue14] and tostring(runtimeValue14:GetAttribute("ID")) == tostring(action.Unit) then
-						return runtimeValue14
+				if textValue then
+					local entryValue = towerData:FindFirstChild(textValue)
+					if entryValue and isOwnTower(entryValue) and not element[entryValue] and not State.UsedRuntimeTowers[entryValue] and tostring(entryValue:GetAttribute("ID")) == tostring(action.Unit) then
+						return entryValue
 					end
 					return nil
 				end
-				local value2, value12 = findRuntimeTower(action, runtimeValue7)
-				runtimeValue15 = value12
+				local value2, value12 = findRuntimeTower(action, element)
+				pendingValue = value12
 				if value2 then
 					return value2
 				end
-				if runtimeValue13 and not runtimeValue9 and not runtimeValue15 and os.clock() - runtimeValue13.At >= 0.15 then
+				if currentValue and not textValue and not pendingValue and os.clock() - currentValue.At >= 0.15 then
 					return "funds_rejected"
 				end
 				return nil
 			end, 2, 0.03)
-			if runtimeValue9 and not runtimeValue10 and not (value3 and typeof(value13) == "Instance") then
+			if textValue and not indexValue and not (value3 and typeof(value13) == "Instance") then
 				value3, value13 = waitUntil(function()
 					if not isPlaying(session) or isMatchEnded() then
 						return true
 					end
-					local runtimeValue14 = towerData:FindFirstChild(runtimeValue9)
-					if runtimeValue14 and isOwnTower(runtimeValue14) and not runtimeValue7[runtimeValue14] and not State.UsedRuntimeTowers[runtimeValue14] and tostring(runtimeValue14:GetAttribute("ID")) == tostring(action.Unit) then
-						return runtimeValue14
+					local entryValue = towerData:FindFirstChild(textValue)
+					if entryValue and isOwnTower(entryValue) and not element[entryValue] and not State.UsedRuntimeTowers[entryValue] and tostring(entryValue:GetAttribute("ID")) == tostring(action.Unit) then
+						return entryValue
 					end
 				end, 6, .03)
 			end
-			if runtimeValue11 then
-				runtimeValue11:Disconnect()
+			if cachedValue then
+				disconnectPlaybackConnection(session, cachedValue)
 			end
-			if runtimeValue12 then
-				runtimeValue12:Disconnect()
+			if nextValue then
+				disconnectPlaybackConnection(session, nextValue)
 			end
 			if not isPlaying(session) or isMatchEnded() then
 				return false, "Playback cancelled"
@@ -1775,26 +1805,26 @@ local function playPlace(action, session)
 				State.PlacementWait = nil
 				return true
 			end
-			if value13 == "funds_rejected" and runtimeValue13 and not runtimeValue9 then
+			if value13 == "funds_rejected" and currentValue and not textValue then
 				State.PlacementWait = {
 					Handle = action.Handle,
-					RequiredCost = runtimeValue6,
-					ServerMessage = runtimeValue13.Text
+					RequiredCost = requiredCost,
+					ServerMessage = currentValue.Text
 				}
-				setStatus("Playback", "Place " .. tostring(action.Unit) .. " | waiting for server funds " .. formatMoney() .. "/" .. tostring(runtimeValue6))
-				local runtimeValue16 = getMoney()
+				setStatus("Playback", "Place " .. tostring(action.Unit) .. " | waiting for server funds " .. formatMoney() .. "/" .. tostring(requiredCost))
+				local elapsedValue = getMoney()
 				waitUntil(function()
-					return not isPlaying(session) or isMatchEnded() or getMoney() >= runtimeValue6 and getMoney() ~= runtimeValue16
-				end, math.max(0.03, runtimeValue5 - os.clock()), 0.03)
+					return not isPlaying(session) or isMatchEnded() or getMoney() >= requiredCost and getMoney() ~= elapsedValue
+				end, math.max(0.03, result - os.clock()), 0.03)
 			else
-				if runtimeValue15 or runtimeValue9 or not ok4 then
-					return false, runtimeValue15 or (runtimeValue9 and "Placement accepted; metadata unconfirmed, no duplicate retry" or "Place transport failed: " .. tostring(result4))
+				if pendingValue or textValue or not ok4 then
+					return false, pendingValue or (textValue and "Placement accepted; metadata unconfirmed, no duplicate retry" or "Place transport failed: " .. tostring(result4))
 				end
-				if getMoney() < runtimeValue8 then
+				if getMoney() < label then
 					return false, "Placement changed cash; no duplicate resend"
 				end
 				for _, item3 in ipairs(towerData:GetChildren()) do
-					if not runtimeValue7[item3] and isOwnTower(item3) then
+					if not element[item3] and isOwnTower(item3) then
 						return false, "Unidentified new tower; no duplicate resend"
 					end
 				end
@@ -1811,161 +1841,161 @@ local function playPlace(action, session)
 	return false, "Place timed out waiting for server funds/acceptance"
 end
 local function getRuntimeTower(handle)
-	local runtimeValue4 = State.RuntimeHandles[handle]
-	if runtimeValue4 and runtimeValue4.Parent == towerData then
-		return runtimeValue4
+	local value = State.RuntimeHandles[handle]
+	if value and value.Parent == towerData then
+		return value
 	end
 	return nil
 end
 local function playUpgrade(action, session)
-	local runtimeValue4 = getRuntimeTower(action.Handle)
-	if not runtimeValue4 then
+	local value = getRuntimeTower(action.Handle)
+	if not value then
 		return false, "Tower handle is missing: " .. tostring(action.Handle)
 	end
-	local runtimeValue5 = tonumber(action.ToLevel) or (tonumber(action.FromLevel) or 0) + 1
+	local result = tonumber(action.ToLevel) or (tonumber(action.FromLevel) or 0) + 1
 	local num = math.max(0, tonumber(action.EstimatedCost) or 0)
-	local runtimeValue6 = os.clock() + 180
-	local str, str2 = tostring(runtimeValue4.Name), tostring(runtimeValue4:GetAttribute("ID"))
-	local dataTable, runtimeValue7, runtimeValue8 = {}, tonumber(runtimeValue4:GetAttribute("Upgrade")) or 0, nil
-	local function utilityRoutine()
-		for _, item in ipairs(dataTable) do
-			item:Disconnect()
+	local child = os.clock() + 180
+	local str, str2 = tostring(value.Name), tostring(value:GetAttribute("ID"))
+	local records, element, label = {}, tonumber(value:GetAttribute("Upgrade")) or 0, nil
+	local function helperFunction()
+		for _, item in ipairs(records) do
+			disconnectPlaybackConnection(session, item)
 		end
-		dataTable = {}
+		records = {}
 	end
-	local function utilityRoutine2()
-		utilityRoutine()
+	local function createUiElement()
+		helperFunction()
 		for _, item in ipairs({
 			"Upgrade",
 			"SellPrice"
 		}) do
 			local ok2, result2 = pcall(function()
-				return runtimeValue4:GetAttributeChangedSignal(item):Connect(function()
-					local runtimeValue9 = tonumber(runtimeValue4:GetAttribute("Upgrade")) or 0
-					runtimeValue7 = math.max(runtimeValue7, runtimeValue9)
+				return trackPlaybackConnection(session, value:GetAttributeChangedSignal(item):Connect(function()
+					local textValue = tonumber(value:GetAttribute("Upgrade")) or 0
+					element = math.max(element, textValue)
 					if item == "Upgrade" then
-						runtimeValue8 = runtimeValue9
+						label = textValue
 					end
-				end)
+				end))
 			end)
 			if ok2 and result2 then
-				table.insert(dataTable, result2)
+				table.insert(records, result2)
 			end
 		end
 	end
-	local function utilityRoutine3(parameter, parameter2)
-		utilityRoutine()
-		if parameter then
+	local function setupUiElement(data, options)
+		helperFunction()
+		if data then
 			State.UpgradeWait = nil
 		end
-		return parameter, parameter2
+		return data, options
 	end
-	utilityRoutine2()
-	local runtimeValue10, count, count2, stateFlag, runtimeValue11 = nil, 0, 0, false, nil
-	while isPlaying(session) and not isMatchEnded() and os.clock() < runtimeValue6 do
-		local runtimeValue12 = towerData:FindFirstChild(str)
-		if runtimeValue12 and runtimeValue12 ~= runtimeValue4 and isOwnTower(runtimeValue12) and tostring(runtimeValue12:GetAttribute("ID")) == str2 then
-			runtimeValue4 = runtimeValue12
-			State.RuntimeHandles[action.Handle] = runtimeValue12
-			State.UsedRuntimeTowers[runtimeValue12] = true
-			utilityRoutine2()
+	createUiElement()
+	local indexValue, count, count2, isActive, cachedValue = nil, 0, 0, false, nil
+	while isPlaying(session) and not isMatchEnded() and os.clock() < child do
+		local nextValue = towerData:FindFirstChild(str)
+		if nextValue and nextValue ~= value and isOwnTower(nextValue) and tostring(nextValue:GetAttribute("ID")) == str2 then
+			value = nextValue
+			State.RuntimeHandles[action.Handle] = nextValue
+			State.UsedRuntimeTowers[nextValue] = true
+			createUiElement()
 		end
-		if runtimeValue4.Parent ~= towerData then
-			return utilityRoutine3(false, "Tower disappeared during upgrade")
+		if value.Parent ~= towerData then
+			return setupUiElement(false, "Tower disappeared during upgrade")
 		end
-		local runtimeValue13 = tonumber(runtimeValue4:GetAttribute("Upgrade")) or 0
-		runtimeValue7 = math.max(runtimeValue7, runtimeValue13)
-		local runtimeValue14 = runtimeValue7
-		if runtimeValue14 >= runtimeValue5 then
-			return utilityRoutine3(true)
+		local currentValue = tonumber(value:GetAttribute("Upgrade")) or 0
+		element = math.max(element, currentValue)
+		local entryValue = element
+		if entryValue >= result then
+			return setupUiElement(true)
 		end
-		local runtimeValue15 = getMoney()
-		local runtimeValue16 = tonumber(runtimeValue4:GetAttribute("SellPrice")) or 0
-		if runtimeValue10 and runtimeValue14 > runtimeValue10.level then
-			runtimeValue10, num = nil, 0
+		local pendingValue = getMoney()
+		local elapsedValue = tonumber(value:GetAttribute("SellPrice")) or 0
+		if indexValue and entryValue > indexValue.level then
+			indexValue, num = nil, 0
 		end
-		if runtimeValue10 then
-			runtimeValue10.spent = runtimeValue10.spent or runtimeValue16 > runtimeValue10.price
-			if runtimeValue15 < runtimeValue10.lastCash then
-				runtimeValue10.cashDropAt = os.clock()
+		if indexValue then
+			indexValue.spent = indexValue.spent or elapsedValue > indexValue.price
+			if pendingValue < indexValue.lastCash then
+				indexValue.cashDropAt = os.clock()
 			end
-			runtimeValue10.lastCash = runtimeValue15
-			local runtimeValue18 = not runtimeValue10.cashDropAt or os.clock() - runtimeValue10.cashDropAt >= 1
-			if not runtimeValue10.spent and runtimeValue10.cash ~= math.huge and runtimeValue18 and os.clock() - runtimeValue10.at >= 2 and runtimeValue15 >= num then
-				runtimeValue10 = nil
+			indexValue.lastCash = pendingValue
+			local storedValue = not indexValue.cashDropAt or os.clock() - indexValue.cashDropAt >= 1
+			if not indexValue.spent and indexValue.cash ~= math.huge and storedValue and os.clock() - indexValue.at >= 2 and pendingValue >= num then
+				indexValue = nil
 			end
 		end
-		if not runtimeValue10 and runtimeValue15 >= num then
-			runtimeValue10 = {
-				level = runtimeValue14,
-				cash = runtimeValue15,
-				lastCash = runtimeValue15,
-				price = runtimeValue16,
+		if not indexValue and pendingValue >= num then
+			indexValue = {
+				level = entryValue,
+				cash = pendingValue,
+				lastCash = pendingValue,
+				price = elapsedValue,
 				at = os.clock(),
 				spent = false
 			}
 			count2 = count2 + 1
-			runtimeValue11 = runtimeValue11 or os.clock()
-			local ok3, result3 = pcall(Remotes.Upgrade.FireServer, Remotes.Upgrade, tostring(runtimeValue4.Name))
+			cachedValue = cachedValue or os.clock()
+			local ok3, result3 = pcall(Remotes.Upgrade.FireServer, Remotes.Upgrade, tostring(value.Name))
 			if not ok3 then
-				return utilityRoutine3(false, "Upgrade transport failed: " .. tostring(result3))
+				return setupUiElement(false, "Upgrade transport failed: " .. tostring(result3))
 			end
 		end
 		State.UpgradeWait = {
 			Handle = action.Handle,
-			Level = runtimeValue14,
-			TargetLevel = runtimeValue5,
-			RuntimeId = tostring(runtimeValue4.Name),
-			RawLevel = runtimeValue13,
-			EventLevel = runtimeValue8,
-			Cash = runtimeValue15,
+			Level = entryValue,
+			TargetLevel = result,
+			RuntimeId = tostring(value.Name),
+			RawLevel = currentValue,
+			EventLevel = label,
+			Cash = pendingValue,
 			RequiredCost = num,
 			Attempts = count2,
-			Pending = runtimeValue10 ~= nil,
-			Spent = runtimeValue10 and runtimeValue10.spent or false,
-			PendingAge = runtimeValue10 and os.clock() - runtimeValue10.at or 0,
-			CashDropAt = runtimeValue10 and runtimeValue10.cashDropAt or nil
+			Pending = indexValue ~= nil,
+			Spent = indexValue and indexValue.spent or false,
+			PendingAge = indexValue and os.clock() - indexValue.at or 0,
+			CashDropAt = indexValue and indexValue.cashDropAt or nil
 		}
-		if runtimeValue10 and not stateFlag and runtimeValue11 and os.clock() - runtimeValue11 >= 4 and type(Hub.ExportDebug) == "function" then
-			stateFlag = true
+		if indexValue and not isActive and cachedValue and os.clock() - cachedValue >= 4 and type(Hub.ExportDebug) == "function" then
+			isActive = true
 			pcall(Hub.ExportDebug, "Upgrade pending >4s: " .. tostring(action.Handle) .. " / server ID " .. str)
 		end
 		if os.clock() >= count then
 			count = os.clock() + 0.5
-			local runtimeValue19 = runtimeValue15 < num and "money " .. formatMoney() .. "/" .. tostring(num) or "level confirmation | sent " .. tostring(count2)
-			setStatus("Playback", string.format("Upgrade %s [ID %s] | Lv %d/%d | %s", tostring(action.Handle), tostring(runtimeValue4.Name), runtimeValue14, runtimeValue5, runtimeValue19))
+			local targetValue = pendingValue < num and "money " .. formatMoney() .. "/" .. tostring(num) or "level confirmation | sent " .. tostring(count2)
+			setStatus("Playback", string.format("Upgrade %s [ID %s] | Lv %d/%d | %s", tostring(action.Handle), tostring(value.Name), entryValue, result, targetValue))
 		end
 		task.wait(0.03)
 	end
 	if not isPlaying(session) or isMatchEnded() then
-		return utilityRoutine3(false, "Playback cancelled")
+		return setupUiElement(false, "Playback cancelled")
 	end
-	return utilityRoutine3(false, "Upgrade timed out after 180s without confirmed target level")
+	return setupUiElement(false, "Upgrade timed out after 180s without confirmed target level")
 end
-local function isLegacyDuplicateTarget(parameter, parameter2)
+local function isLegacyDuplicateTarget(data, options)
 	if State.ProfileVersion >= 2 then
 		return false
 	end
-	local runtimeValue4 = State.Actions[parameter - 1]
-	if not runtimeValue4 or runtimeValue4.Type ~= "Upgrade" or runtimeValue4.Handle ~= parameter2.Handle then
+	local value = State.Actions[data - 1]
+	if not value or value.Type ~= "Upgrade" or value.Handle ~= options.Handle then
 		return false
 	end
-	local num = tonumber(parameter2.RecordedAt)
-	local num2 = tonumber(runtimeValue4.RecordedAt)
+	local num = tonumber(options.RecordedAt)
+	local num2 = tonumber(value.RecordedAt)
 	return num ~= nil and num2 ~= nil and num >= num2 and num - num2 <= 0.5
 end
 local function playSell(action, session)
-	local runtimeValue4 = getRuntimeTower(action.Handle)
-	if not runtimeValue4 then
+	local value = getRuntimeTower(action.Handle)
+	if not value then
 		return true
 	end
 	for _ = 1, 3 do
-		if not isPlaying(session) or runtimeValue4.Parent ~= towerData then
+		if not isPlaying(session) or value.Parent ~= towerData then
 			return true
 		end
-		Remotes.Sell:FireServer(tostring(runtimeValue4.Name))
+		Remotes.Sell:FireServer(tostring(value.Name))
 		if waitUntil(function()
-			return runtimeValue4.Parent ~= towerData
+			return value.Parent ~= towerData
 		end, 3, 0.1) then
 			return true
 		end
@@ -1974,46 +2004,46 @@ local function playSell(action, session)
 	return false, "Sell was not confirmed"
 end
 local function playTargetMode(action, session)
-	local runtimeValue4 = getRuntimeTower(action.Handle)
-	if not runtimeValue4 then
+	local value = getRuntimeTower(action.Handle)
+	if not value then
 		return false, "Tower handle is missing: " .. tostring(action.Handle)
 	end
 	for _ = 1, 8 do
-		if not isPlaying(session) or runtimeValue4.Parent ~= towerData then
+		if not isPlaying(session) or value.Parent ~= towerData then
 			return false, "Tower disappeared"
 		end
-		if runtimeValue4:GetAttribute("TargetMode") == action.Mode then
+		if value:GetAttribute("TargetMode") == action.Mode then
 			return true
 		end
-		Remotes.Target:FireServer(tostring(runtimeValue4.Name))
+		Remotes.Target:FireServer(tostring(value.Name))
 		task.wait(0.25)
 	end
-	return runtimeValue4:GetAttribute("TargetMode") == action.Mode, "Target mode was not confirmed"
+	return value:GetAttribute("TargetMode") == action.Mode, "Target mode was not confirmed"
 end
-local function parseAbilityFailure(parameter, parameter2)
-	local dataTable, runtimeValue4 = {}, nil
-	for i = 3, parameter.n or # parameter do
-		local runtimeValue5 = parameter[i]
-		if type(runtimeValue5) == "string" then
-			dataTable[# dataTable + 1] = runtimeValue5
-		elseif type(runtimeValue5) == "table" then
+local function parseAbilityFailure(data, options)
+	local records, value = {}, nil
+	for i = 3, data.n or # data do
+		local result = data[i]
+		if type(result) == "string" then
+			records[# records + 1] = result
+		elseif type(result) == "table" then
 			for _, item in ipairs({
 				"Message",
 				"Reason",
 				"Error"
 			}) do
-				if type(runtimeValue5[item]) == "string" then
-					dataTable[# dataTable + 1] = runtimeValue5[item]
+				if type(result[item]) == "string" then
+					records[# records + 1] = result[item]
 				end
 			end
-			local num = tonumber(runtimeValue5.CooldownRemaining or runtimeValue5.RemainingCooldown or runtimeValue5.RetryAfter)
+			local num = tonumber(result.CooldownRemaining or result.RemainingCooldown or result.RetryAfter)
 			if num and num >= 0 and num <= 3600 then
-				runtimeValue4 = num
+				value = num
 			end
 		end
 	end
-	local runtimeValue6 = table.concat(dataTable, " "):sub(1, 200)
-	local lowered = runtimeValue6:lower()
+	local child = table.concat(records, " "):sub(1, 200)
+	local lowered = child:lower()
 	for _, item3 in ipairs({
 		"invalid ability",
 		"unknown ability",
@@ -2024,21 +2054,21 @@ local function parseAbilityFailure(parameter, parameter2)
 		"unsupported"
 	}) do
 		if lowered:find(item3, 1, true) then
-			return nil, false, runtimeValue6
+			return nil, false, child
 		end
 	end
-	local runtimeValue7 = lowered:find("cooldown", 1, true) ~= nil or lowered:find("on cd", 1, true) ~= nil or runtimeValue4 ~= nil
-	if not runtimeValue4 and runtimeValue7 then
-		runtimeValue4 = tonumber(lowered:match("cooldown[^%d]*(%d+%.?%d*)"))
+	local element = lowered:find("cooldown", 1, true) ~= nil or lowered:find("on cd", 1, true) ~= nil or value ~= nil
+	if not value and element then
+		value = tonumber(lowered:match("cooldown[^%d]*(%d+%.?%d*)"))
 	end
-	if runtimeValue4 and runtimeValue4 >= 0 and runtimeValue4 <= 3600 then
-		return math.max(.25, runtimeValue4), true, runtimeValue6
+	if value and value >= 0 and value <= 3600 then
+		return math.max(.25, value), true, child
 	end
-	return math.min(30, 2 ^ math.min(parameter2 - 1, 5)), runtimeValue7, runtimeValue6
+	return math.min(30, 2 ^ math.min(options - 1, 5)), element, child
 end
 local function playAbility(action, session)
-	local runtimeValue4 = getRuntimeTower(action.Handle)
-	if not runtimeValue4 then
+	local value = getRuntimeTower(action.Handle)
+	if not value then
 		return false, "Tower handle is missing: " .. tostring(action.Handle)
 	end
 	if not Remotes.Ability or not Remotes.Ability:IsA("RemoteFunction") then
@@ -2048,133 +2078,136 @@ local function playAbility(action, session)
 	if str == "" and action.CaptureSource ~= "Remote" then
 		return false, "Ability has no confirmation marker; record this skill again"
 	end
-	if isModeMarker(str) and action.ExpectedState ~= nil and runtimeValue4:GetAttribute(str) == action.ExpectedState then
+	if isModeMarker(str) and action.ExpectedState ~= nil and value:GetAttribute(str) == action.ExpectedState then
 		return true
 	end
 	if str == "AttackMode" and action.ExpectedState ~= nil and not action.ModeStep then
 		if type(action.ExpectedState) ~= "number" or action.ExpectedState < 1 or action.ExpectedState > 3 or action.ExpectedState % 1 ~= 0 then
 			return false, "Invalid recorded attack mode"
 		end
-		local dataTable = {}
+		local records = {}
 		for index, item in pairs(action) do
-			dataTable[index] = item
+			records[index] = item
 		end
-		dataTable.ExpectedState = nil
-		dataTable.ModeStep = true
-		dataTable.Cooldown = math.max(5, tonumber(dataTable.Cooldown) or 0)
+		records.ExpectedState = nil
+		records.ModeStep = true
+		records.Cooldown = math.max(5, tonumber(records.Cooldown) or 0)
 		for _ = 1, 3 do
-			if not isPlaying(session) or runtimeValue4.Parent ~= towerData then
+			if not isPlaying(session) or value.Parent ~= towerData then
 				return false, "Mode change cancelled"
 			end
-			if runtimeValue4:GetAttribute(str) == action.ExpectedState then
+			if value:GetAttribute(str) == action.ExpectedState then
 				return true
 			end
-			local value, value1 = playAbility(dataTable, session)
+			local value, value1 = playAbility(records, session)
 			if not value then
 				return false, value1
 			end
 		end
-		return runtimeValue4:GetAttribute(str) == action.ExpectedState, "Recorded attack mode was not reached"
+		return value:GetAttribute(str) == action.ExpectedState, "Recorded attack mode was not reached"
 	end
-	local runtimeValue5 = tonumber(action.RequiredLevel) or 0
+	local result = tonumber(action.RequiredLevel) or 0
 	local num = math.max(0, tonumber(action.Cooldown) or 0)
-	local runtimeValue6 = tostring(action.Handle) .. ":" .. str .. ":" .. tostring(action.AbilityIndex or 1)
+	local child = tostring(action.Handle) .. ":" .. str .. ":" .. tostring(action.AbilityIndex or 1)
 	local str2 = tostring(action.AbilityName or str)
 	State.AbilityLastUsed = State.AbilityLastUsed or {}
 	State.AbilityAttempts = State.AbilityAttempts or {}
 	local value2, value12 = getGameClock()
 	local now = os.clock()
-	local count, runtimeValue7, count2 = 0, nil, 0
-	local stateFlag = false
+	local count, element, count2 = 0, nil, 0
+	local isActive = false
 	local count3 = 0
-	local function utilityRoutine()
-		return isPlaying(session) and not isMatchEnded() and runtimeValue4.Parent == towerData
+	local function helperFunction()
+		return isPlaying(session) and not isMatchEnded() and value.Parent == towerData
 	end
-	local function utilityRoutine2()
+	local function createUiElement()
 		local value3, value13 = getGameClock()
 		return os.clock() - now >= 900 or value13 == value12 and value3 - value2 >= 600
 	end
-	while utilityRoutine() and not utilityRoutine2() and count3 < 32 do
-		local runtimeValue15 = waitUntil(function()
-			if not utilityRoutine() or utilityRoutine2() then
+	while helperFunction() and not createUiElement() and count3 < 32 do
+		local pendingValue = waitUntil(function()
+			if not helperFunction() or createUiElement() then
 				return true
 			end
 			local value3, value13 = getGameClock()
-			local runtimeValue8 = State.AbilityLastUsed[runtimeValue6]
-			local runtimeValue9 = math.huge
-			if type(runtimeValue8) == "table" then
-				runtimeValue9 = runtimeValue8.Kind == value13 and value3 - runtimeValue8.At or os.clock() - runtimeValue8.RealAt
-			elseif type(runtimeValue8) == "number" then
-				runtimeValue9 = os.clock() - runtimeValue8
+			local label = State.AbilityLastUsed[child]
+			local textValue = math.huge
+			if type(label) == "table" then
+				textValue = label.Kind == value13 and value3 - label.At or os.clock() - label.RealAt
+			elseif type(label) == "number" then
+				textValue = os.clock() - label
 			end
-			local runtimeValue10 = runtimeValue7 == value13 and count - value3 or count2 - os.clock()
-			local num2 = math.max(0, num - runtimeValue9, runtimeValue10)
-			local runtimeValue11 = getMoney() >= (tonumber(action.EstimatedCost) or 0)
-			local runtimeValue12 = (tonumber(runtimeValue4:GetAttribute("Upgrade")) or 0) >= runtimeValue5
-			local runtimeValue13 = not str:match("^ATTACK") or not isTruthyState(runtimeValue4:GetAttribute(str))
-			local runtimeValue14 = num2 > 0 and ((stateFlag or num - runtimeValue9 > 0) and "Cooldown " or "Retry in ") .. math.ceil(num2) .. "s" or not runtimeValue11 and "Waiting for cash" or not runtimeValue12 and "Waiting for upgrade" or not runtimeValue13 and "Waiting for active ability" or "Ready"
+			local indexValue = element == value13 and count - value3 or count2 - os.clock()
+			local num2 = math.max(0, num - textValue, indexValue)
+			local cachedValue = getMoney() >= (tonumber(action.EstimatedCost) or 0)
+			local nextValue = (tonumber(value:GetAttribute("Upgrade")) or 0) >= result
+			local currentValue = not str:match("^ATTACK") or not isTruthyState(value:GetAttribute(str))
+			local entryValue = num2 > 0 and ((isActive or num - textValue > 0) and "Cooldown " or "Retry in ") .. math.ceil(num2) .. "s" or not cachedValue and "Waiting for cash" or not nextValue and "Waiting for upgrade" or not currentValue and "Waiting for active ability" or "Ready"
 			State.AbilityWait = {
 				Name = str2,
-				Phase = runtimeValue14,
+				Phase = entryValue,
 				Attempt = count3,
 				Action = State.PlaybackIndex
 			}
-			setStatus("Playback", string.format("Action %d/%d | %s | %s", State.PlaybackIndex or 1, # State.Actions, str2, runtimeValue14))
-			return num2 <= 0 and runtimeValue11 and runtimeValue12 and runtimeValue13
+			setStatus("Playback", string.format("Action %d/%d | %s | %s", State.PlaybackIndex or 1, # State.Actions, str2, entryValue))
+			return num2 <= 0 and cachedValue and nextValue and currentValue
 		end, 901, .1)
-		if not utilityRoutine() then
+		if not helperFunction() then
 			return false, "Ability cancelled or tower disappeared"
 		end
-		if not runtimeValue15 or utilityRoutine2() then
+		if not pendingValue or createUiElement() then
 			break
 		end
-		if isModeMarker(str) and action.ExpectedState ~= nil and runtimeValue4:GetAttribute(str) == action.ExpectedState then
+		if isModeMarker(str) and action.ExpectedState ~= nil and value:GetAttribute(str) == action.ExpectedState then
 			State.AbilityWait = nil
 			return true
 		end
 		count3 = count3 + 1
-		local runtimeValue16 = runtimeValue4:GetAttribute(str)
-		local stateFlag2, runtimeValue18 = false, nil
-		local function utilityRoutine3()
-			local runtimeValue8 = runtimeValue4:GetAttribute(str)
-			if runtimeValue8 == runtimeValue16 then
+		local elapsedValue = value:GetAttribute(str)
+		local isEnabled, storedValue = false, nil
+		local function setupUiElement()
+			local label = value:GetAttribute(str)
+			if label == elapsedValue then
 				return
 			end
-			if str:match("^ATTACK") and not abilityStateChanged(runtimeValue16, runtimeValue8, true) then
+			if str:match("^ATTACK") and not abilityStateChanged(elapsedValue, label, true) then
 				return
 			end
-			if str == "AttackMode" and (type(runtimeValue8) ~= "number" or runtimeValue8 < 1 or runtimeValue8 > 3 or runtimeValue8 % 1 ~= 0) then
+			if str == "AttackMode" and (type(label) ~= "number" or label < 1 or label > 3 or label % 1 ~= 0) then
 				return
 			end
-			if action.ExpectedState ~= nil and runtimeValue8 ~= action.ExpectedState then
+			if action.ExpectedState ~= nil and label ~= action.ExpectedState then
 				return
 			end
-			stateFlag2 = true
+			isEnabled = true
 		end
-		local runtimeValue19 = str ~= "" and runtimeValue4:GetAttributeChangedSignal(str):Connect(utilityRoutine3)
-		task.spawn(function()
-			runtimeValue18 = table.pack(pcall(Remotes.Ability.InvokeServer, Remotes.Ability, tostring(runtimeValue4.Name), tonumber(action.AbilityIndex) or 1))
+		local targetValue = str ~= "" and trackPlaybackConnection(session, value:GetAttributeChangedSignal(str):Connect(setupUiElement))
+		local abilityThread = task.spawn(function()
+			storedValue = table.pack(pcall(Remotes.Ability.InvokeServer, Remotes.Ability, tostring(value.Name), tonumber(action.AbilityIndex) or 1))
 		end)
 		waitUntil(function()
-			if runtimeValue18 and runtimeValue18[1] and runtimeValue18[2] == true and action.CaptureSource == "Remote" then
-				stateFlag2 = true
+			if storedValue and storedValue[1] and storedValue[2] == true and action.CaptureSource == "Remote" then
+				isEnabled = true
 			end
-			return not utilityRoutine() or stateFlag2 or runtimeValue18 and (not runtimeValue18[1] or runtimeValue18[2] == false)
+			return not helperFunction() or isEnabled or storedValue and (not storedValue[1] or storedValue[2] == false)
 		end, 12, .03)
-		if utilityRoutine() and runtimeValue18 and runtimeValue18[1] and runtimeValue18[2] == false and not stateFlag2 then
+		if helperFunction() and storedValue and storedValue[1] and storedValue[2] == false and not isEnabled then
 			waitUntil(function()
-				return not utilityRoutine() or stateFlag2
+				return not helperFunction() or isEnabled
 			end, .25, .05)
 		end
-		if runtimeValue19 then
-			runtimeValue19:Disconnect()
+		if targetValue then
+			disconnectPlaybackConnection(session, targetValue)
 		end
-		if not utilityRoutine() then
+		if not storedValue and abilityThread then
+			pcall(task.cancel, abilityThread)
+		end
+		if not helperFunction() then
 			return false, "Ability cancelled or tower disappeared"
 		end
-		if stateFlag2 then
+		if isEnabled then
 			local value4, value14 = getGameClock()
-			State.AbilityLastUsed[runtimeValue6] = {
+			State.AbilityLastUsed[child] = {
 				At = value4,
 				Kind = value14,
 				RealAt = os.clock()
@@ -2182,22 +2215,22 @@ local function playAbility(action, session)
 			State.AbilityWait = nil
 			return true
 		end
-		if not runtimeValue18 then
+		if not storedValue then
 			return false, "Ability response unconfirmed; no duplicate retry: " .. str2
 		end
-		if not runtimeValue18[1] then
-			return false, "Ability transport failed: " .. tostring(runtimeValue18[2])
+		if not storedValue[1] then
+			return false, "Ability transport failed: " .. tostring(storedValue[2])
 		end
-		if runtimeValue18[2] ~= false then
+		if storedValue[2] ~= false then
 			return false, "Ability unconfirmed; no duplicate retry: " .. str2
 		end
-		local value5, value15, value22 = parseAbilityFailure(runtimeValue18, count3)
+		local value5, value15, value22 = parseAbilityFailure(storedValue, count3)
 		if not value5 then
 			return false, "Ability unavailable: " .. value22
 		end
 		local value6, value16 = getGameClock()
-		count, runtimeValue7, count2 = value6 + value5, value16, os.clock() + value5
-		stateFlag = value15
+		count, element, count2 = value6 + value5, value16, os.clock() + value5
+		isActive = value15
 		if # State.AbilityAttempts < 40 then
 			table.insert(State.AbilityAttempts, {
 				Name = str2,
@@ -2211,39 +2244,39 @@ local function playAbility(action, session)
 	return false, "Ability readiness timeout: " .. str2
 end
 local function playBoostLink(action, session)
-	local runtimeValue4 = getRuntimeTower(action.SourceHandle)
-	local runtimeValue5 = getRuntimeTower(action.TargetHandle)
-	if not runtimeValue4 then
+	local value = getRuntimeTower(action.SourceHandle)
+	local result = getRuntimeTower(action.TargetHandle)
+	if not value then
 		return false, "Boost source handle is missing: " .. tostring(action.SourceHandle)
 	end
-	if not runtimeValue5 then
+	if not result then
 		return false, "Boost target handle is missing: " .. tostring(action.TargetHandle)
 	end
 	if not Remotes.BoostSelect or not Remotes.BoostSelect:IsA("RemoteEvent") then
 		return false, "BoostSelect is unavailable"
 	end
-	local num = tonumber(runtimeValue4.Name)
-	local str = tostring(runtimeValue5.Name)
+	local num = tonumber(value.Name)
+	local str = tostring(result.Name)
 	if not num then
 		return false, "Boost source has an invalid server ID"
 	end
-	if tostring(runtimeValue5:GetAttribute("ClockBoost")) == tostring(num) then
+	if tostring(result:GetAttribute("ClockBoost")) == tostring(num) then
 		return true
 	end
 	Remotes.BoostSelect:FireServer(num, str)
-	local runtimeValue6 = waitUntil(function()
-		return not isPlaying(session) or runtimeValue4.Parent ~= towerData or runtimeValue5.Parent ~= towerData or tostring(runtimeValue5:GetAttribute("ClockBoost")) == tostring(num)
+	local child = waitUntil(function()
+		return not isPlaying(session) or value.Parent ~= towerData or result.Parent ~= towerData or tostring(result:GetAttribute("ClockBoost")) == tostring(num)
 	end, 5, 0.05)
 	if not isPlaying(session) then
 		return false, "Playback stopped while linking boost"
 	end
-	if runtimeValue4.Parent ~= towerData or runtimeValue5.Parent ~= towerData then
+	if value.Parent ~= towerData or result.Parent ~= towerData then
 		return false, "Boost tower disappeared"
 	end
-	return runtimeValue6, runtimeValue6 and nil or "Boost link was not confirmed"
+	return child, child and nil or "Boost link was not confirmed"
 end
-function Hub.ExportDebug(parameter)
-	local dataTable = {
+function Hub.ExportDebug(data)
+	local records = {
 		Version = 1,
 		Build = "skibidi-demo-server-money-20261031",
 		LeaderMoney = State.LastLeaderMoney,
@@ -2257,7 +2290,7 @@ function Hub.ExportDebug(parameter)
 		Money = formatMoney(),
 		ActionIndex = State.PlaybackIndex,
 		Action = State.Actions[State.PlaybackIndex or 0],
-		Reason = parameter or State.LastPlaybackFailure,
+		Reason = data or State.LastPlaybackFailure,
 		Towers = {},
 		UpgradeWait = State.UpgradeWait,
 		PlacementWait = State.PlacementWait,
@@ -2275,9 +2308,9 @@ function Hub.ExportDebug(parameter)
 	}
 	if towerData then
 		for _, item in ipairs(towerData:GetChildren()) do
-			if isOwnTower(item) and # dataTable.Towers < 100 then
+			if isOwnTower(item) and # records.Towers < 100 then
 				local boostPos = item:GetAttribute("BoostPos")
-				table.insert(dataTable.Towers, {
+				table.insert(records.Towers, {
 					RuntimeId = item.Name,
 					Unit = item:GetAttribute("ID"),
 					Upgrade = item:GetAttribute("Upgrade"),
@@ -2291,22 +2324,28 @@ function Hub.ExportDebug(parameter)
 			end
 		end
 	end
-	local runtimeValue4 = "SkibidiTD_Debug_" .. tostring(os.time()) .. ".json"
+	local value = "SkibidiTD_Debug_" .. tostring(os.time()) .. ".json"
 	if type(writefile) ~= "function" then
 		return nil, "writefile unavailable"
 	end
 	local ok2, result2 = pcall(function()
-		writefile(runtimeValue4, HttpService:JSONEncode(dataTable))
+		writefile(value, HttpService:JSONEncode(records))
 	end)
-	return ok2 and runtimeValue4 or nil, ok2 and nil or tostring(result2)
+	return ok2 and value or nil, ok2 and nil or tostring(result2)
 end
 local function stopPlayback(reason)
+	local session = State.PlaySession
+	-- Invalidate first so callbacks cannot schedule more work during cleanup.
+	State.PlaySession = nil
+	State.Playing = false
+	cleanupPlaybackSession(session)
+	State.RuntimeHandles = {}
+	State.UsedRuntimeTowers = nil
+	State.UpgradeWait, State.PlacementWait, State.AbilityWait = nil, nil, nil
 	if reason and (reason:find("failed", 1, true) or reason:find("timed out", 1, true) or reason:find("error", 1, true)) then
 		State.LastPlaybackFailure = reason
 		pcall(Hub.ExportDebug, reason)
 	end
-	State.PlaySession = nil
-	State.Playing = false
 	if reason then
 		setStatus("Stopped", reason)
 	end
@@ -2324,7 +2363,7 @@ local function startPlayback()
 	if # State.Actions == 0 then
 		return false, "Load or record a profile first"
 	end
-	State.PlaySession = {}
+	State.PlaySession = { Connections = {} }
 	local playSession = State.PlaySession
 	State.Playing = true
 	State.AutoPlaybackStarted = true
@@ -2356,7 +2395,10 @@ local function startPlayback()
 				now = os.clock()
 				task.wait(0.03)
 			end
-			now = os.clock()
+			-- Normalize the macro timeline to its first action: the first tower should
+			-- be eligible immediately at Wave 1, while later actions keep their recorded spacing.
+			local firstActionRecordedAt = math.max(0, tonumber(State.Actions[1] and State.Actions[1].RecordedAt) or 0)
+			now = os.clock() - firstActionRecordedAt
 			for index, item in ipairs(State.Actions) do
 				if not isPlaying(playSession) or isMatchEnded() then
 					break
@@ -2367,7 +2409,7 @@ local function startPlayback()
 				State.PlaybackIndex = index
 				updateActionSummary()
 				setStatus("Playback", string.format("%d/%d  %s  W%d", index, # State.Actions, item.Type or "?", item.Wave or 0))
-				local runtimeValue4 = waitForActionTime(item, now, playSession)
+				local value = waitForActionTime(item, now, playSession)
 				if not isPlaying(playSession) then
 					return
 				end
@@ -2375,36 +2417,38 @@ local function startPlayback()
 					stopPlayback("Match ended before the macro finished")
 					break
 				end
-				if not runtimeValue4 then
-					stopPlayback(string.format("Action %d timed out waiting for %s | Money %s", index, State.PlaybackMode, formatMoney()))
-					return
-				end
-				local runtimeValue5, runtimeValue6
-				if item.Type == "Place" then
-					runtimeValue5, runtimeValue6 = playPlace(item, playSession)
-				elseif item.Type == "Upgrade" then
-					runtimeValue5, runtimeValue6 = playUpgrade(item, playSession)
-				elseif item.Type == "Sell" then
-					runtimeValue5, runtimeValue6 = playSell(item, playSession)
-				elseif item.Type == "Target" then
-					if isLegacyDuplicateTarget(index, item) then
-						runtimeValue5 = true
-					else
-						runtimeValue5, runtimeValue6 = playTargetMode(item, playSession)
-					end
-				elseif item.Type == "Ability" then
-					runtimeValue5, runtimeValue6 = playAbility(item, playSession)
-				elseif item.Type == "BoostLink" then
-					runtimeValue5, runtimeValue6 = playBoostLink(item, playSession)
+				if not value then
+					-- A single delayed action must not abort the remaining macro.
+					setStatus("Playback", string.format("Skipped action %d/%d: timed out waiting for %s | Money %s", index, #State.Actions, State.PlaybackMode, formatMoney()))
 				else
-					runtimeValue5, runtimeValue6 = false, "Unknown action type: " .. tostring(item.Type)
-				end
-				if not isPlaying(playSession) then
-					return
-				end
-				if not runtimeValue5 then
-					stopPlayback(string.format("Action %d failed: %s", index, runtimeValue6 or "unknown error"))
-					return
+					local actionSucceeded, actionError
+					if item.Type == "Place" then
+						actionSucceeded, actionError = playPlace(item, playSession)
+					elseif item.Type == "Upgrade" then
+						actionSucceeded, actionError = playUpgrade(item, playSession)
+					elseif item.Type == "Sell" then
+						actionSucceeded, actionError = playSell(item, playSession)
+					elseif item.Type == "Target" then
+						if isLegacyDuplicateTarget(index, item) then
+							actionSucceeded = true
+						else
+							actionSucceeded, actionError = playTargetMode(item, playSession)
+						end
+					elseif item.Type == "Ability" then
+						actionSucceeded, actionError = playAbility(item, playSession)
+					elseif item.Type == "BoostLink" then
+						actionSucceeded, actionError = playBoostLink(item, playSession)
+					else
+						actionSucceeded, actionError = false, "Unknown action type: " .. tostring(item.Type)
+					end
+					if not isPlaying(playSession) then
+						return
+					end
+					if not actionSucceeded then
+						-- Placement failures are skipped, not blindly resent: a late server receipt
+						-- could otherwise create a duplicate tower on the next attempt.
+						setStatus("Playback", string.format("Skipped action %d/%d: %s", index, #State.Actions, tostring(actionError or "unknown error")))
+					end
 				end
 				if index == 1 then
 					State.PlaybackFirstActionDone = true
@@ -2412,11 +2456,16 @@ local function startPlayback()
 			end
 			if isPlaying(playSession) then
 				State.Playing = false
+				cleanupPlaybackSession(playSession)
+				State.PlaySession = nil
+				State.RuntimeHandles = {}
+				State.UsedRuntimeTowers = nil
+				State.UpgradeWait, State.PlacementWait, State.AbilityWait = nil, nil, nil
 				updateActionSummary()
 				setStatus("Playback complete", "Waiting for the match to end")
 			end
-		end, function(parameter)
-			return tostring(parameter)
+		end, function(data)
+			return tostring(data)
 		end)
 		if not ok2 and isPlaying(playSession) then
 			stopPlayback("Playback error: " .. tostring(result2))
@@ -2534,65 +2583,65 @@ local modifierLabelOverrides = {
 	LBRUN = "Leaderboard Run",
 	BPXP = "Battlepass XP"
 }
-local function modifierLabel(parameter)
-	local runtimeValue4 = modifierLabelOverrides[parameter]
-	if runtimeValue4 then
-		return runtimeValue4
+local function modifierLabel(data)
+	local value = modifierLabelOverrides[data]
+	if value then
+		return value
 	end
-	return parameter:gsub("(%l)(%u)", "%1 %2"):gsub("(%a)(%d)", "%1 %2"):gsub("(%d)(%a)", "%1 %2")
+	return data:gsub("(%l)(%u)", "%1 %2"):gsub("(%a)(%d)", "%1 %2"):gsub("(%d)(%a)", "%1 %2")
 end
 for _, item6 in ipairs(modifierList) do
 	modifierSet[item6] = true
-	local runtimeValue20 = modifierLabel(item6)
-	modifierByLabel[runtimeValue20] = item6
-	labelByModifier[item6] = runtimeValue20
-	table.insert(modifierLabels, runtimeValue20)
+	local sourceValue = modifierLabel(item6)
+	modifierByLabel[sourceValue] = item6
+	labelByModifier[item6] = sourceValue
+	table.insert(modifierLabels, sourceValue)
 end
-local function normalizeModifiers(parameter)
-	local dataTable = {}
-	if type(parameter) ~= "table" then
-		return dataTable
+local function normalizeModifiers(data)
+	local records = {}
+	if type(data) ~= "table" then
+		return records
 	end
-	for index, item in pairs(parameter) do
-		local runtimeValue4
+	for index, item in pairs(data) do
+		local value
 		if type(index) == "string" and item == true then
-			runtimeValue4 = index
+			value = index
 		elseif type(index) == "number" and type(item) == "string" then
-			runtimeValue4 = item
+			value = item
 		end
-		local runtimeValue5 = runtimeValue4 and (modifierByLabel[runtimeValue4] or runtimeValue4)
-		if runtimeValue5 and modifierSet[runtimeValue5] then
-			dataTable[runtimeValue5] = true
+		local result = value and (modifierByLabel[value] or value)
+		if result and modifierSet[result] then
+			records[result] = true
 		end
 	end
-	return dataTable
+	return records
 end
 State.LobbyModifiers = normalizeModifiers(State.LobbyModifiers)
-local function modifiersToLabels(parameter)
-	local dataTable = {}
+local function modifiersToLabels(data)
+	local records = {}
 	for _, item in ipairs(modifierList) do
-		if parameter[item] == true then
-			table.insert(dataTable, labelByModifier[item])
+		if data[item] == true then
+			table.insert(records, labelByModifier[item])
 		end
 	end
-	return dataTable
+	return records
 end
 local function applyLobbyModifiers()
-	local dataTable = {}
+	local records = {}
 	for _, item in ipairs(modifierList) do
 		if State.LobbyModifiers[item] == true then
-			table.insert(dataTable, item)
+			table.insert(records, item)
 		end
 	end
-	if # dataTable == 0 then
+	if # records == 0 then
 		return true
 	end
 	refreshRemotes()
 	if not Remotes.ModifierState or not Remotes.ModifierState:IsA("RemoteEvent") then
 		return false, "ReplicatedStorage.ModifierState was not found"
 	end
-	setStatus("Auto Join", string.format("Applying %d modifier(s)", # dataTable))
-	for _, item3 in ipairs(dataTable) do
+	setStatus("Auto Join", string.format("Applying %d modifier(s)", # records))
+	for _, item3 in ipairs(records) do
 		local ok2, result2 = pcall(function()
 			Remotes.ModifierState:FireServer(item3, true)
 		end)
@@ -2604,7 +2653,7 @@ local function applyLobbyModifiers()
 	return true
 end
 local function scanChapters()
-	local runtimeValue4 = getPlayerGui()
+	local value = getPlayerGui()
 	for _, item in ipairs({
 		"Main",
 		"Frame",
@@ -2612,12 +2661,12 @@ local function scanChapters()
 		"Servers",
 		"List"
 	}) do
-		runtimeValue4 = runtimeValue4 and runtimeValue4:FindFirstChild(item)
+		value = value and value:FindFirstChild(item)
 	end
-	if not runtimeValue4 then
+	if not value then
 		return
 	end
-	local dataTable = {
+	local records = {
 		Story = "Story",
 		Multiverse = "Multiverse",
 		Event = "Nightmare",
@@ -2626,170 +2675,170 @@ local function scanChapters()
 		Versus = "Versus",
 		Episodes = "Episodes"
 	}
-	for index, item3 in pairs(dataTable) do
-		local runtimeValue5, dataTable2 = runtimeValue4:FindFirstChild(index), {}
-		if runtimeValue5 then
-			for _, item4 in ipairs(runtimeValue5:GetChildren()) do
+	for index, item3 in pairs(records) do
+		local result, copiedData = value:FindFirstChild(index), {}
+		if result then
+			for _, item4 in ipairs(result:GetChildren()) do
 				if item4.Name == "Chapter" then
 					local init = item4:FindFirstChild("Init")
-					local runtimeValue6 = init and init:FindFirstChild("TXT")
-					local runtimeValue7 = runtimeValue6 and runtimeValue6:FindFirstChild("CH")
-					local runtimeValue8 = runtimeValue7 and tostring(runtimeValue7.Text) or ""
-					if runtimeValue8 ~= "" and not table.find(dataTable2, runtimeValue8) then
-						table.insert(dataTable2, runtimeValue8)
+					local child = init and init:FindFirstChild("TXT")
+					local element = child and child:FindFirstChild("CH")
+					local label = element and tostring(element.Text) or ""
+					if label ~= "" and not table.find(copiedData, label) then
+						table.insert(copiedData, label)
 					end
 				end
 			end
 		end
-		if # dataTable2 > 0 then
-			chaptersByMode[item3] = dataTable2
+		if # copiedData > 0 then
+			chaptersByMode[item3] = copiedData
 		end
 	end
 end
-local function getChapters(parameter)
+local function getChapters(data)
 	scanChapters()
-	if parameter ~= "All" then
-		return table.clone(chaptersByMode[parameter] or {})
+	if data ~= "All" then
+		return table.clone(chaptersByMode[data] or {})
 	end
-	local dataTable = {}
+	local records = {}
 	for _, item in pairs(chaptersByMode) do
 		for _, item3 in ipairs(item) do
-			if not table.find(dataTable, item3) then
-				table.insert(dataTable, item3)
+			if not table.find(records, item3) then
+				table.insert(records, item3)
 			end
 		end
 	end
 	local servers = ReplicatedStorage:FindFirstChild("Servers")
 	if servers then
 		for _, item4 in ipairs(servers:GetChildren()) do
-			if not table.find(dataTable, item4.Name) then
-				table.insert(dataTable, item4.Name)
+			if not table.find(records, item4.Name) then
+				table.insert(records, item4.Name)
 			end
 		end
 	end
-	table.sort(dataTable)
-	return dataTable
+	table.sort(records)
+	return records
 end
 -- Webhook and match reports
 local Reports = {}
 Hub.Reports = Reports
-function Reports.ValidURL(parameter)
-	return type(parameter) == "string"
-		and (parameter:match("^https://discord%.com/api/webhooks/%d+/[%w_%-]+$") ~= nil
-			or parameter:match("^https://discordapp%.com/api/webhooks/%d+/[%w_%-]+$") ~= nil)
+function Reports.ValidURL(data)
+	return type(data) == "string"
+		and (data:match("^https://discord%.com/api/webhooks/%d+/[%w_%-]+$") ~= nil
+			or data:match("^https://discordapp%.com/api/webhooks/%d+/[%w_%-]+$") ~= nil)
 end
-function Reports.Escape(parameter)
-	return tostring(parameter or ""):gsub("([\\`*_~|<>])", "\\%1"):sub(1, 900)
+function Reports.Escape(data)
+	return tostring(data or ""):gsub("([\\`*_~|<>])", "\\%1"):sub(1, 900)
 end
-function Reports.Post(parameter, parameter2)
-	if not Reports.ValidURL(parameter) then
+function Reports.Post(data, options)
+	if not Reports.ValidURL(data) then
 		return false, "Enter a valid webhook URL"
 	end
-	local runtimeValue4 = http_request or request or syn and syn.request or fluxus and fluxus.request
-	if type(runtimeValue4) ~= "function" then
+	local value = http_request or request or syn and syn.request or fluxus and fluxus.request
+	if type(value) ~= "function" then
 		return false, "Executor HTTP unavailable"
 	end
-	local dataTable = {
+	local records = {
 		username = "Skibidi Defense Hub",
 		allowed_mentions = {
 			parse = {}
 		},
 		embeds = {
-			parameter2
+			options
 		}
 	}
 	local ok2, result2 = pcall(function()
-		return runtimeValue4({
-			Url = parameter,
+		return value({
+			Url = data,
 			Method = "POST",
 			Headers = {
 				["Content-Type"] = "application/json"
 			},
-			Body = HttpService:JSONEncode(dataTable)
+			Body = HttpService:JSONEncode(records)
 		})
 	end)
 	if not ok2 then
 		return false, "HTTP request failed"
 	end
-	local runtimeValue5 = type(result2) == "table" and tonumber(result2.StatusCode or result2.Status)
-	return runtimeValue5 ~= nil and runtimeValue5 >= 200 and runtimeValue5 < 300, runtimeValue5 and "HTTP " .. runtimeValue5 or "HTTP result unconfirmed"
+	local result = type(result2) == "table" and tonumber(result2.StatusCode or result2.Status)
+	return result ~= nil and result >= 200 and result < 300, result and "HTTP " .. result or "HTTP result unconfirmed"
 end
-function Reports.FormatTime(parameter)
-	parameter = tonumber(parameter)
-	if not parameter then
+function Reports.FormatTime(data)
+	data = tonumber(data)
+	if not data then
 		return "Unavailable"
 	end
-	parameter = math.floor(math.max(0, parameter))
-	return string.format("%02d:%02d", math.floor(parameter / 60), parameter % 60)
+	data = math.floor(math.max(0, data))
+	return string.format("%02d:%02d", math.floor(data / 60), data % 60)
 end
-function Reports.Lines(parameter)
-	local dataTable = {}
-	for index in pairs(parameter) do
-		dataTable[# dataTable + 1] = index
+function Reports.Lines(data)
+	local records = {}
+	for index in pairs(data) do
+		records[# records + 1] = index
 	end
-	table.sort(dataTable)
-	local dataTable2 = {}
-	for _, item in ipairs(dataTable) do
-		dataTable2[# dataTable2 + 1] = "\226\128\162 " .. Reports.Escape(item) .. ": +" .. tostring(parameter[item])
+	table.sort(records)
+	local copiedData = {}
+	for _, item in ipairs(records) do
+		copiedData[# copiedData + 1] = "\226\128\162 " .. Reports.Escape(item) .. ": +" .. tostring(data[item])
 	end
-	return # dataTable2 > 0 and table.concat(dataTable2, "\n"):sub(1, 1000) or "No reward reported"
+	return # copiedData > 0 and table.concat(copiedData, "\n"):sub(1, 1000) or "No reward reported"
 end
-function Reports.ParseRewards(parameter)
-	local dataTable = {}
-	for item0, item1 in tostring(parameter or ""):gmatch("%+%s*([%d,]+)%s+([^!\n;]+)") do
-		local runtimeValue4 = item0:gsub(",", "")
-		local num = tonumber(runtimeValue4)
+function Reports.ParseRewards(data)
+	local records = {}
+	for item0, item1 in tostring(data or ""):gmatch("%+%s*([%d,]+)%s+([^!\n;]+)") do
+		local value = item0:gsub(",", "")
+		local num = tonumber(value)
 		item1 = item1:gsub("^%s+", ""):gsub("%s+$", "")
 		if num and item1 ~= "" then
-			dataTable[item1] = (dataTable[item1] or 0) + num
+			records[item1] = (records[item1] or 0) + num
 		end
 	end
-	return dataTable
+	return records
 end
-function Reports.Visible(parameter)
-	while parameter do
-		if parameter:IsA("GuiObject") and not parameter.Visible then
+function Reports.Visible(data)
+	while data do
+		if data:IsA("GuiObject") and not data.Visible then
 			return false
 		end
-		if parameter:IsA("ScreenGui") and not parameter.Enabled then
+		if data:IsA("ScreenGui") and not data.Enabled then
 			return false
 		end
-		parameter = parameter.Parent
+		data = data.Parent
 	end
 	return true
 end
 function Reports.MatchRewards()
-	local runtimeValue4 = getGameEndedGui()
-	local dataTable, dataTable2 = {}, {}
-	if runtimeValue4 then
-		for _, item in ipairs(runtimeValue4:GetDescendants()) do
+	local value = getGameEndedGui()
+	local records, copiedData = {}, {}
+	if value then
+		for _, item in ipairs(value:GetDescendants()) do
 			if (item:IsA("TextLabel") or item:IsA("TextButton")) and Reports.Visible(item) then
-				local runtimeValue5 = tostring(item.Text or ""):gsub("<[^>]->", "")
-				local lowered = runtimeValue5:lower()
-				local runtimeValue6 = next(Reports.ParseRewards(runtimeValue5)) ~= nil
-				local runtimeValue7 = item
-				while runtimeValue7 and runtimeValue7 ~= runtimeValue4 do
-					if runtimeValue7.Name:lower():find("reward", 1, true) then
-						runtimeValue6 = true
+				local result = tostring(item.Text or ""):gsub("<[^>]->", "")
+				local lowered = result:lower()
+				local child = next(Reports.ParseRewards(result)) ~= nil
+				local element = item
+				while element and element ~= value do
+					if element.Name:lower():find("reward", 1, true) then
+						child = true
 						break
 					end
-					runtimeValue7 = runtimeValue7.Parent
+					element = element.Parent
 				end
-				if runtimeValue6 and runtimeValue5 ~= "" and not dataTable2[runtimeValue5] and # dataTable < 12 then
-					dataTable2[runtimeValue5] = true
-					dataTable[# dataTable + 1] = Reports.Escape(runtimeValue5)
-				elseif lowered:find("reward", 1, true) and # runtimeValue5 > 12 and not dataTable2[runtimeValue5] and # dataTable < 12 then
-					dataTable2[runtimeValue5] = true
-					dataTable[# dataTable + 1] = Reports.Escape(runtimeValue5)
+				if child and result ~= "" and not copiedData[result] and # records < 12 then
+					copiedData[result] = true
+					records[# records + 1] = Reports.Escape(result)
+				elseif lowered:find("reward", 1, true) and # result > 12 and not copiedData[result] and # records < 12 then
+					copiedData[result] = true
+					records[# records + 1] = Reports.Escape(result)
 				end
 			end
 		end
 	end
-	return # dataTable > 0 and table.concat(dataTable, "\n"):sub(1, 1000) or "Unavailable"
+	return # records > 0 and table.concat(records, "\n"):sub(1, 1000) or "Unavailable"
 end
 function Reports.AccountTotals()
 	local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
-	local dataTable = {}
+	local records = {}
 	if leaderstats then
 		for _, item in ipairs(leaderstats:GetChildren()) do
 			local lowered = item.Name:lower()
@@ -2798,20 +2847,20 @@ function Reports.AccountTotals()
 					return item.Value
 				end)
 				if ok2 then
-					dataTable[# dataTable + 1] = "\226\128\162 " .. Reports.Escape(item.Name) .. ": " .. Reports.Escape(result2)
+					records[# records + 1] = "\226\128\162 " .. Reports.Escape(item.Name) .. ": " .. Reports.Escape(result2)
 				end
 			end
 		end
 	end
-	return # dataTable > 0 and table.concat(dataTable, "\n"):sub(1, 1000) or "Unavailable"
+	return # records > 0 and table.concat(records, "\n"):sub(1, 1000) or "Unavailable"
 end
 function Reports.BuildMatch()
-	local runtimeValue4 = getMatchResult()
-	local runtimeValue5 = State.ReportStartedAt and (State.ReportEndedAt or os.clock()) - State.ReportStartedAt
+	local value = getMatchResult()
+	local result = State.ReportStartedAt and (State.ReportEndedAt or os.clock()) - State.ReportStartedAt
 	return {
 		title = "Skibidi Defense Match Report",
-		description = "**Stage:** " .. Reports.Escape(State.LobbyChapter) .. "\n**Mode:** " .. Reports.Escape(State.LobbyMode) .. "\n**Result:** " .. Reports.Escape(runtimeValue4),
-		color = runtimeValue4 == "Victory" and 65280 or runtimeValue4 == "Defeat" and 16711680 or 16776960,
+		description = "**Stage:** " .. Reports.Escape(State.LobbyChapter) .. "\n**Mode:** " .. Reports.Escape(State.LobbyMode) .. "\n**Result:** " .. Reports.Escape(value),
+		color = value == "Victory" and 65280 or value == "Defeat" and 16711680 or 16776960,
 		fields = {
 			{
 				name = "Player Info",
@@ -2820,7 +2869,7 @@ function Reports.BuildMatch()
 			},
 			{
 				name = "Clear Time",
-				value = "\226\143\177\239\184\143 " .. Reports.FormatTime(runtimeValue5),
+				value = "\226\143\177\239\184\143 " .. Reports.FormatTime(result),
 				inline = true
 			},
 			{
@@ -2844,14 +2893,14 @@ function Reports.BuildMatch()
 		timestamp = DateTime.now():ToIsoDate()
 	}
 end
-sendWebhookMessage = function(parameter, parameter2, parameter3)
+sendWebhookMessage = function(data, options, callback)
 	if not State.WebhookEnabled then
 		return false, "Webhook is disabled"
 	end
 	return Reports.Post(State.WebhookURL, {
-		title = parameter,
-		description = parameter2,
-		color = parameter3 or 5793266,
+		title = data,
+		description = options,
+		color = callback or 5793266,
 		footer = {
 			text = "Made By Kero"
 		}
@@ -2879,29 +2928,29 @@ local MatchFlow = {
 	})
 }
 Hub.MatchFlow = MatchFlow
-function MatchFlow.Path(parameter, parameter2)
-	for item0 in parameter2:gmatch("[^/]+") do
-		parameter = parameter and parameter:FindFirstChild(item0)
+function MatchFlow.Path(data, options)
+	for item0 in options:gmatch("[^/]+") do
+		data = data and data:FindFirstChild(item0)
 	end
-	return parameter
+	return data
 end
-function MatchFlow.Visible(parameter)
-	if not parameter or not parameter.Parent then
+function MatchFlow.Visible(data)
+	if not data or not data.Parent then
 		return false
 	end
-	while parameter do
-		if parameter:IsA("GuiObject") and not parameter.Visible then
+	while data do
+		if data:IsA("GuiObject") and not data.Visible then
 			return false
 		end
-		if parameter:IsA("ScreenGui") and not parameter.Enabled then
+		if data:IsA("ScreenGui") and not data.Enabled then
 			return false
 		end
-		parameter = parameter.Parent
+		data = data.Parent
 	end
 	return true
 end
-function MatchFlow.Click(parameter)
-	if not parameter or not parameter:IsA("GuiButton") or not MatchFlow.Visible(parameter) or parameter.Active == false then
+function MatchFlow.Click(data)
+	if not data or not data:IsA("GuiButton") or not MatchFlow.Visible(data) or data.Active == false then
 		return false, "Game button unavailable"
 	end
 	if type(getconnections) == "function" then
@@ -2910,10 +2959,10 @@ function MatchFlow.Click(parameter)
 			"MouseButton1Click"
 		}) do
 			local ok2, result2 = pcall(function()
-				return getconnections(parameter[item])
+				return getconnections(data[item])
 			end)
 			if ok2 and type(result2) == "table" then
-				local stateFlag = false
+				local isActive = false
 				for _, item3 in ipairs(result2) do
 					if item3.Enabled ~= false and item3.Connected ~= false then
 						local ok3 = pcall(function()
@@ -2925,107 +2974,107 @@ function MatchFlow.Click(parameter)
 								error("No callable handler")
 							end
 						end)
-						stateFlag = stateFlag or ok3
+						isActive = isActive or ok3
 					end
 				end
-				if stateFlag then
+				if isActive then
 					return true
 				end
 			end
 		end
 	end
 	local ok4 = pcall(function()
-		local absolutePosition, absoluteSize = parameter.AbsolutePosition, parameter.AbsoluteSize
+		local absolutePosition, absoluteSize = data.AbsolutePosition, data.AbsoluteSize
 		if absoluteSize.X <= 0 or absoluteSize.Y <= 0 then
 			error("Button has no screen bounds")
 		end
-		local runtimeValue4, runtimeValue5 = absolutePosition.X + absoluteSize.X / 2, absolutePosition.Y + absoluteSize.Y / 2
-		local runtimeValue6 = parameter:FindFirstAncestorWhichIsA("ScreenGui")
-		if runtimeValue6 and not runtimeValue6.IgnoreGuiInset then
-			local runtimeValue7 = game:GetService("GuiService"):GetGuiInset()
-			runtimeValue4 = runtimeValue4 + runtimeValue7.X
-			runtimeValue5 = runtimeValue5 + runtimeValue7.Y
+		local value, result = absolutePosition.X + absoluteSize.X / 2, absolutePosition.Y + absoluteSize.Y / 2
+		local child = data:FindFirstAncestorWhichIsA("ScreenGui")
+		if child and not child.IgnoreGuiInset then
+			local element = game:GetService("GuiService"):GetGuiInset()
+			value = value + element.X
+			result = result + element.Y
 		end
 		local virtualInputManager = game:GetService("VirtualInputManager")
-		virtualInputManager:SendMouseButtonEvent(runtimeValue4, runtimeValue5, 0, true, game, 0)
-		virtualInputManager:SendMouseButtonEvent(runtimeValue4, runtimeValue5, 0, false, game, 0)
+		virtualInputManager:SendMouseButtonEvent(value, result, 0, true, game, 0)
+		virtualInputManager:SendMouseButtonEvent(value, result, 0, false, game, 0)
 	end)
 	return ok4, ok4 and nil or "Executor cannot activate the game button"
 end
-function MatchFlow.ClickResult(parameter)
+function MatchFlow.ClickResult(data)
 	if not isMatchEnded() then
 		return false, "Waiting for result screen"
 	end
-	return MatchFlow.Click(MatchFlow.Path(getGameEndedGui(), "Frame/" .. parameter))
+	return MatchFlow.Click(MatchFlow.Path(getGameEndedGui(), "Frame/" .. data))
 end
-function MatchFlow.ValidateLoadout(parameter)
-	if type(parameter) ~= "table" or type(parameter.Towers) ~= "table" or # parameter.Towers < 1 or # parameter.Towers > 12 then
+function MatchFlow.ValidateLoadout(data)
+	if type(data) ~= "table" or type(data.Towers) ~= "table" or # data.Towers < 1 or # data.Towers > 12 then
 		return nil
 	end
-	local dataTable = {}
-	for _, item in ipairs(parameter.Towers) do
+	local records = {}
+	for _, item in ipairs(data.Towers) do
 		if type(item) ~= "string" or # item == 0 or # item > 100 then
 			return nil
 		end
-		dataTable[# dataTable + 1] = item
+		records[# records + 1] = item
 	end
 	return {
-		Index = tonumber(parameter.Index),
-		Name = tostring(parameter.Name or "Preset"):sub(1, 100),
-		Chapter = tostring(parameter.Chapter or ""):sub(1, 100),
-		Towers = dataTable
+		Index = tonumber(data.Index),
+		Name = tostring(data.Name or "Preset"):sub(1, 100),
+		Chapter = tostring(data.Chapter or ""):sub(1, 100),
+		Towers = records
 	}
 end
-function MatchFlow.SameTowers(parameter, parameter2)
-	if type(parameter) ~= "table" or type(parameter2) ~= "table" or # parameter ~= # parameter2 or # parameter == 0 then
+function MatchFlow.SameTowers(data, options)
+	if type(data) ~= "table" or type(options) ~= "table" or # data ~= # options or # data == 0 then
 		return false
 	end
-	for index, item in ipairs(parameter) do
-		if item ~= parameter2[index] then
+	for index, item in ipairs(data) do
+		if item ~= options[index] then
 			return false
 		end
 	end
 	return true
 end
 function MatchFlow.ReadCards()
-	local runtimeValue4 = MatchFlow.Path(getPlayerGui(), "EasyLoadout/Root/Cards")
-	local dataTable = {}
-	if runtimeValue4 then
+	local value = MatchFlow.Path(getPlayerGui(), "EasyLoadout/Root/Cards")
+	local records = {}
+	if value then
 		for i = 1, 4 do
-			local runtimeValue5 = runtimeValue4:FindFirstChild("Card" .. i)
-			local runtimeValue6 = runtimeValue5 and runtimeValue5:FindFirstChild("List")
-			local runtimeValue7 = MatchFlow.Path(runtimeValue5, "Banner/Title")
-			local dataTable2 = {}
-			if runtimeValue6 then
+			local result = value:FindFirstChild("Card" .. i)
+			local child = result and result:FindFirstChild("List")
+			local element = MatchFlow.Path(result, "Banner/Title")
+			local copiedData = {}
+			if child then
 				for i2 = 1, 12 do
-					local runtimeValue8 = MatchFlow.Path(runtimeValue6, "Row" .. i2 .. "/Name")
-					if not runtimeValue8 then
+					local label = MatchFlow.Path(child, "Row" .. i2 .. "/Name")
+					if not label then
 						break
 					end
-					dataTable2[# dataTable2 + 1] = runtimeValue8.Text
+					copiedData[# copiedData + 1] = label.Text
 				end
 			end
-			if # dataTable2 > 0 then
-				dataTable[i] = {
-					Name = runtimeValue7 and runtimeValue7.Text or "Preset " .. i,
-					Towers = dataTable2
+			if # copiedData > 0 then
+				records[i] = {
+					Name = element and element.Text or "Preset " .. i,
+					Towers = copiedData
 				}
 			end
 		end
 	end
-	return dataTable, runtimeValue4
+	return records, value
 end
 function MatchFlow.PickerOpen()
-	local runtimeValue4 = MatchFlow.Path(getPlayerGui(), "EasyLoadout/Root")
-	local runtimeValue5 = MatchFlow.Path(runtimeValue4, "Header/Title")
-	return MatchFlow.Visible(runtimeValue4) and not (runtimeValue5 and tostring(runtimeValue5.Text):upper():find("LOCKED", 1, true))
+	local value = MatchFlow.Path(getPlayerGui(), "EasyLoadout/Root")
+	local result = MatchFlow.Path(value, "Header/Title")
+	return MatchFlow.Visible(value) and not (result and tostring(result.Text):upper():find("LOCKED", 1, true))
 end
-function MatchFlow.OnShow(parameter)
-	if type(parameter) ~= "table" or type(parameter.Presets) ~= "table" then
+function MatchFlow.OnShow(data)
+	if type(data) ~= "table" or type(data.Presets) ~= "table" then
 		return
 	end
-	MatchFlow.Presets = parameter.Presets
-	MatchFlow.Chapter = parameter.Chapter
+	MatchFlow.Presets = data.Presets
+	MatchFlow.Chapter = data.Chapter
 	MatchFlow.Applied = nil
 	MatchFlow.Requested = nil
 	MatchFlow.ChoiceEpoch = {}
@@ -3035,20 +3084,20 @@ function MatchFlow.HydrateApplied()
 	if MatchFlow.Applied or os.clock() < (MatchFlow.HydrateAfter or 0) then
 		return
 	end
-	local runtimeValue4 = MatchFlow.Path(getPlayerGui(), "EasyLoadout/Root/Header/Title")
-	if not runtimeValue4 or not tostring(runtimeValue4.Text):upper():find("LOCKED IN", 1, true) then
+	local value = MatchFlow.Path(getPlayerGui(), "EasyLoadout/Root/Header/Title")
+	if not value or not tostring(value.Text):upper():find("LOCKED IN", 1, true) then
 		return
 	end
 	local value, value1 = MatchFlow.ReadCards()
-	local runtimeValue5
+	local result
 	for index, item in pairs(value) do
-		local runtimeValue6 = MatchFlow.Path(value1, "Card" .. index .. "/Picked")
-		local runtimeValue7 = runtimeValue6 and runtimeValue6:FindFirstChild("Label")
-		if runtimeValue6 and runtimeValue6.Visible and runtimeValue7 and tostring(runtimeValue7.Text):upper():find("LOCKED IN", 1, true) then
-			if runtimeValue5 then
+		local child = MatchFlow.Path(value1, "Card" .. index .. "/Picked")
+		local element = child and child:FindFirstChild("Label")
+		if child and child.Visible and element and tostring(element.Text):upper():find("LOCKED IN", 1, true) then
+			if result then
 				return
 			end
-			runtimeValue5 = {
+			result = {
 				Index = index,
 				Name = item.Name,
 				Chapter = MatchFlow.Chapter,
@@ -3056,7 +3105,7 @@ function MatchFlow.HydrateApplied()
 			}
 		end
 	end
-	MatchFlow.Applied = MatchFlow.ValidateLoadout(runtimeValue5)
+	MatchFlow.Applied = MatchFlow.ValidateLoadout(result)
 end
 function MatchFlow.RecordLoadout()
 	MatchFlow.HydrateApplied()
@@ -3082,10 +3131,10 @@ function MatchFlow.UpdateRecorderClock()
 	end
 end
 function MatchFlow.UpdateLoadoutStatus()
-	local runtimeValue4 = State.MacroLoadout and State.MacroLoadout.Name or "Not recorded"
-	if UI.LoadoutStatus and MatchFlow.LoadoutText ~= runtimeValue4 then
-		MatchFlow.LoadoutText = runtimeValue4
-		UI.LoadoutStatus:SetDesc(runtimeValue4)
+	local value = State.MacroLoadout and State.MacroLoadout.Name or "Not recorded"
+	if UI.LoadoutStatus and MatchFlow.LoadoutText ~= value then
+		MatchFlow.LoadoutText = value
+		UI.LoadoutStatus:SetDesc(value)
 	end
 end
 function MatchFlow.SaveCurrentLoadout()
@@ -3096,32 +3145,32 @@ function MatchFlow.SaveCurrentLoadout()
 		return false, "Select a macro first"
 	end
 	MatchFlow.HydrateApplied()
-	local runtimeValue4 = MatchFlow.ValidateLoadout(MatchFlow.Applied)
-	if not runtimeValue4 then
+	local value = MatchFlow.ValidateLoadout(MatchFlow.Applied)
+	if not value then
 		return false, "Choose a preset in the game first"
 	end
 	local macroLoadout = State.MacroLoadout
-	State.MacroLoadout = runtimeValue4
+	State.MacroLoadout = value
 	local ok2, result2, result22 = pcall(saveProfile, State.ProfileName)
 	if not ok2 or not result2 then
 		State.MacroLoadout = macroLoadout
 		return false, tostring(ok2 and result22 or result2)
 	end
 	MatchFlow.UpdateLoadoutStatus()
-	return true, runtimeValue4.Name
+	return true, value.Name
 end
-function MatchFlow.OnApplied(parameter)
+function MatchFlow.OnApplied(data)
 	local presets = MatchFlow.Presets
 	if not next(presets) then
 		presets = MatchFlow.ReadCards()
 	end
 	for index, item in pairs(presets) do
-		if MatchFlow.SameTowers(parameter, item.Towers) then
+		if MatchFlow.SameTowers(data, item.Towers) then
 			MatchFlow.Applied = MatchFlow.ValidateLoadout({
 				Index = index,
 				Name = item.Name,
 				Chapter = MatchFlow.Chapter,
-				Towers = parameter
+				Towers = data
 			})
 			MatchFlow.RecordLoadout()
 			return
@@ -3130,105 +3179,107 @@ function MatchFlow.OnApplied(parameter)
 end
 function MatchFlow.Bind()
 	local easyLoadout = ReplicatedStorage:FindFirstChild("EasyLoadout")
-	local function utilityRoutine(parameter, parameter2)
-		if parameter and not MatchFlow.Bound[parameter] then
-			MatchFlow.Bound[parameter] = true
-			trackConnection(State.Connections, parameter.OnClientEvent:Connect(function(...)
+	local function helperFunction(data, options)
+		if data and not MatchFlow.Bound[data] then
+			MatchFlow.Bound[data] = true
+			trackConnection(State.Connections, data.OnClientEvent:Connect(function(...)
 				if State.Running then
-					parameter2(...)
+					options(...)
 				end
 			end))
 		end
 	end
-	utilityRoutine(easyLoadout and easyLoadout:FindFirstChild("Show"), MatchFlow.OnShow)
-	utilityRoutine(easyLoadout and easyLoadout:FindFirstChild("Applied"), MatchFlow.OnApplied)
+	helperFunction(easyLoadout and easyLoadout:FindFirstChild("Show"), MatchFlow.OnShow)
+	helperFunction(easyLoadout and easyLoadout:FindFirstChild("Applied"), MatchFlow.OnApplied)
 end
-function MatchFlow.PreparePlayback(parameter)
-	local runtimeValue4 = MatchFlow.ValidateLoadout(State.MacroLoadout)
-	if not runtimeValue4 then
+-- Fix: keep the recorded loadout separate from the live preset list returned by ReadCards().
+function MatchFlow.PreparePlayback(session)
+	local recordedLoadout = MatchFlow.ValidateLoadout(State.MacroLoadout)
+	if not recordedLoadout then
 		return true
 	end
-	local runtimeValue5 = os.clock() + 70
-	while isPlaying(parameter) and not isMatchEnded() and os.clock() < runtimeValue5 do
+	local deadline = os.clock() + 70
+	while isPlaying(session) and not isMatchEnded() and os.clock() < deadline do
 		MatchFlow.Bind()
 		MatchFlow.HydrateApplied()
 		if MatchFlow.Applied then
-			return MatchFlow.SameTowers(runtimeValue4.Towers, MatchFlow.Applied.Towers), "A different preset is already applied"
+			return MatchFlow.SameTowers(recordedLoadout.Towers, MatchFlow.Applied.Towers), "A different preset is already applied"
 		end
-		local value, value1 = MatchFlow.ReadCards()
+		local availablePresets, cardsGui = MatchFlow.ReadCards()
 		if next(MatchFlow.Presets) then
-			value = MatchFlow.Presets
+			availablePresets = MatchFlow.Presets
 		end
 		if MatchFlow.PickerOpen() then
-			local runtimeValue6
-			for index, item in pairs(value) do
-				if MatchFlow.SameTowers(runtimeValue4.Towers, item.Towers) then
-					runtimeValue6 = index
+			local matchingPresetIndex
+			for index, preset in pairs(availablePresets) do
+				if MatchFlow.SameTowers(recordedLoadout.Towers, preset.Towers) then
+					matchingPresetIndex = index
 					break
 				end
 			end
-			if not runtimeValue6 and next(value) then
+			if not matchingPresetIndex and next(availablePresets) then
 				return false, "Recorded loadout is unavailable in this map"
 			end
-			local runtimeValue7 = MatchFlow.ChoiceEpoch or value1
-			if runtimeValue6 and value1 and MatchFlow.Requested ~= runtimeValue7 then
-				local runtimeValue8 = value1:FindFirstChild("Card" .. runtimeValue6)
-				local value2, value12 = MatchFlow.Click(runtimeValue8 and (runtimeValue8:FindFirstChild("Select") or runtimeValue8))
-				if value2 then
-					MatchFlow.Requested = runtimeValue7
+			local choiceEpoch = MatchFlow.ChoiceEpoch or cardsGui
+			if matchingPresetIndex and cardsGui and MatchFlow.Requested ~= choiceEpoch then
+				local card = cardsGui:FindFirstChild("Card" .. matchingPresetIndex)
+				local clicked, clickError = MatchFlow.Click(card and (card:FindFirstChild("Select") or card))
+				if clicked then
+					MatchFlow.Requested = choiceEpoch
 				else
-					setStatus("Playback", "Waiting for loadout button | " .. tostring(value12))
+					setStatus("Playback", "Waiting for loadout button | " .. tostring(clickError))
 				end
 			end
-			setStatus("Playback", "Waiting for confirmed loadout: " .. runtimeValue4.Name)
+			setStatus("Playback", "Waiting for confirmed loadout: " .. recordedLoadout.Name)
 		elseif getWave() > 0 and not MatchFlow.Requested then
 			return false, "Cannot confirm recorded loadout; choose it before starting the match"
 		elseif MatchFlow.Requested then
-			setStatus("Playback", "Waiting for confirmed loadout: " .. runtimeValue4.Name)
+			setStatus("Playback", "Waiting for confirmed loadout: " .. recordedLoadout.Name)
 		else
 			setStatus("Playback", "Waiting for preset loadout selection")
 		end
 		task.wait(0.2)
 	end
-	return false, isPlaying(parameter) and "Loadout selection timed out" or "Playback stopped"
+	return false, isPlaying(session) and "Loadout selection timed out" or "Playback stopped"
 end
+
 function MatchFlow.SkipCutscenes()
 	if not State.AutoSkipCutscene then
 		return
 	end
-	local runtimeValue4 = getPlayerGui()
-	if not runtimeValue4 then
+	local value = getPlayerGui()
+	if not value then
 		return
 	end
-	local dataTable = {}
-	for _, item in ipairs(runtimeValue4:GetChildren()) do
+	local records = {}
+	for _, item in ipairs(value:GetChildren()) do
 		local lowered = item.Name:lower()
 		if lowered:find("intro", 1, true) or lowered:find("cutscene", 1, true) then
 			for _, item3 in ipairs(item:GetDescendants()) do
-				dataTable[# dataTable + 1] = item3
+				records[# records + 1] = item3
 			end
 		end
 	end
-	for _, item4 in ipairs(dataTable) do
+	for _, item4 in ipairs(records) do
 		if item4:IsA("TextButton") then
 			local uppered = tostring(item4.Text or ""):upper()
 			if uppered:find("SKIP CUTSCENE", 1, true) or MatchFlow.Cutscene[item4] then
-				local runtimeValue5 = MatchFlow.Visible(item4)
-				local runtimeValue6 = MatchFlow.Cutscene[item4] or {}
-				MatchFlow.Cutscene[item4] = runtimeValue6
-				if not runtimeValue5 then
-					runtimeValue6.Visible = false
+				local result = MatchFlow.Visible(item4)
+				local child = MatchFlow.Cutscene[item4] or {}
+				MatchFlow.Cutscene[item4] = child
+				if not result then
+					child.Visible = false
 				elseif uppered:find("VOTED", 1, true) then
-					runtimeValue6.Sent = true
-					runtimeValue6.Visible = true
+					child.Sent = true
+					child.Visible = true
 				else
-					if not runtimeValue6.Visible then
-						runtimeValue6.Sent = false
+					if not child.Visible then
+						child.Sent = false
 					end
-					runtimeValue6.Visible = true
-					if not runtimeValue6.Sent and os.clock() >= (runtimeValue6.NextAt or 0) then
-						runtimeValue6.NextAt = os.clock() + 1
-						runtimeValue6.Sent = MatchFlow.Click(item4) == true
+					child.Visible = true
+					if not child.Sent and os.clock() >= (child.NextAt or 0) then
+						child.NextAt = os.clock() + 1
+						child.Sent = MatchFlow.Click(item4) == true
 					end
 				end
 			end
@@ -3241,8 +3292,8 @@ function MatchFlow.ReportMatchEnd()
 	State.LiveRoundStarted = false
 	return ok2 and result2 ~= false
 end
-function MatchFlow.EndStep(parameter)
-	if not parameter then
+function MatchFlow.EndStep(hasMatchEnded)
+	if not hasMatchEnded then
 		if MatchFlow.End and MatchFlow.End.ChoiceEpoch == MatchFlow.ChoiceEpoch then
 			MatchFlow.Applied = nil
 			MatchFlow.Requested = nil
@@ -3251,54 +3302,62 @@ function MatchFlow.EndStep(parameter)
 		MatchFlow.End = nil
 		return
 	end
-	local runtimeValue4 = State.PendingLobbyReturn and "Return Lobby" or State.AfterMatch
-	if runtimeValue4 ~= "Replay" and runtimeValue4 ~= "Return Lobby" then
+
+	-- Replay is a supported After Match action; keep it distinct from lobby return.
+	local selectedAction = State.PendingLobbyReturn and "Return Lobby" or State.AfterMatch
+	if selectedAction ~= "Replay" and selectedAction ~= "Return Lobby" then
 		return
 	end
+
 	local now = os.clock()
-	local runtimeValue5 = MatchFlow.End
-	if not runtimeValue5 or runtimeValue5.Action ~= runtimeValue4 then
-		runtimeValue5 = {
-			Action = runtimeValue4,
+	local endState = MatchFlow.End
+	if not endState or endState.Action ~= selectedAction then
+		endState = {
+			Action = selectedAction,
 			NextAt = now + 0.5,
 			ChoiceEpoch = MatchFlow.ChoiceEpoch
 		}
-		MatchFlow.End = runtimeValue5
+		MatchFlow.End = endState
 	end
-	if runtimeValue5.Sent then
-		if runtimeValue4 == "Return Lobby" and not runtimeValue5.Fallback and now - runtimeValue5.Sent >= 12 then
-			runtimeValue5.Fallback = true
+
+	if endState.Sent then
+		if selectedAction == "Return Lobby" and not endState.Fallback and now - endState.Sent >= 12 then
+			endState.Fallback = true
 			if UI.SaveConfigNow then
 				pcall(UI.SaveConfigNow)
 			end
 			if Hub.QueueTeleport then
 				pcall(Hub.QueueTeleport)
 			end
-			local ok2 = pcall(function()
+			local teleportRequested = pcall(function()
 				TeleportService:Teleport(LOBBY_PLACE_ID, LocalPlayer)
 			end)
-			setStatus("Match end", ok2 and "Lobby teleport requested" or "Lobby teleport failed")
+			setStatus("Match end", teleportRequested and "Lobby teleport requested" or "Lobby teleport failed")
 		end
 		return
 	end
-	if now < runtimeValue5.NextAt then
+
+	if now < endState.NextAt then
 		return
 	end
-	runtimeValue5.NextAt = now + 1
+	endState.NextAt = now + 1
 	if UI.SaveConfigNow then
 		pcall(UI.SaveConfigNow)
 	end
 	if Hub.QueueTeleport then
 		pcall(Hub.QueueTeleport)
 	end
-	local value, value1 = MatchFlow.ClickResult(runtimeValue4 == "Replay" and "replay" or "back")
-	if value then
-		runtimeValue5.Sent = now
-		setStatus("Match end", runtimeValue4 == "Replay" and "Replay vote sent; waiting for game" or "Returning to lobby")
+
+	-- Replay must target Frame/replay; Return Lobby targets Frame/back.
+	local resultButton = selectedAction == "Replay" and "replay" or "back"
+	local clickSucceeded, clickError = MatchFlow.ClickResult(resultButton)
+	if clickSucceeded then
+		endState.Sent = now
+		setStatus("Match end", selectedAction == "Replay" and "Replay vote sent; waiting for game" or "Returning to lobby")
 	else
-		setStatus("Match end", tostring(value1))
-		if runtimeValue4 == "Return Lobby" then
-			runtimeValue5.Sent = now - 12
+		setStatus("Match end", tostring(clickError))
+		if selectedAction == "Return Lobby" then
+			endState.Sent = now - 12
 		end
 	end
 end
@@ -3307,19 +3366,19 @@ MatchFlow.Bind()
 Hub.SpeedControl = {}
 do
 	local speedControl = Hub.SpeedControl
-	local function utilityRoutine6(parameter)
-		parameter = tonumber(parameter)
-		return parameter and parameter == parameter and parameter >= 1 and parameter < math.huge and parameter or nil
+	local function setupSpeedControl(data)
+		data = tonumber(data)
+		return data and data == data and data >= 1 and data < math.huge and data or nil
 	end
 	function speedControl.Reset()
-		speedControl.Pending, speedControl.NextAt, speedControl.Signature = nil, 0, nil
+		speedControl.Pending, speedControl.NextAt, speedControl.Signature, speedControl.DelayStartedAt = nil, 0, nil, nil
 	end
 	function speedControl.Read()
 		local game2 = ReplicatedStorage:FindFirstChild("Game")
-		local runtimeValue4 = game2 and game2:FindFirstChild("Speed")
-		if runtimeValue4 then
+		local value = game2 and game2:FindFirstChild("Speed")
+		if value then
 			local ok2, result2 = pcall(function()
-				return tonumber(runtimeValue4.Value)
+				return tonumber(value.Value)
 			end)
 			if ok2 and result2 and result2 >= 0 and result2 < math.huge then
 				return result2
@@ -3329,88 +3388,98 @@ do
 	end
 	function speedControl.Limit()
 		local game2 = ReplicatedStorage:FindFirstChild("Game")
-		local runtimeValue4 = game2 and game2:FindFirstChild("Speed")
-		local runtimeValue5 = getPlayerGui()
-		local runtimeValue6 = runtimeValue5 and runtimeValue5:FindFirstChild("Towers")
-		local runtimeValue7 = runtimeValue6 and runtimeValue6:FindFirstChild("speedButton")
-		local function utilityRoutine(parameter, parameter2)
-			if not parameter then
+		local value = game2 and game2:FindFirstChild("Speed")
+		local result = getPlayerGui()
+		local child = result and result:FindFirstChild("Towers")
+		local element = child and child:FindFirstChild("speedButton")
+		local function helperFunction(data, options)
+			if not data then
 				return nil
 			end
-			for _, item in ipairs(parameter2) do
-				local ok2, result2 = pcall(parameter.GetAttribute, parameter, item)
-				if ok2 and utilityRoutine6(result2) then
-					return utilityRoutine6(result2)
+			for _, item in ipairs(options) do
+				local ok2, result2 = pcall(data.GetAttribute, data, item)
+				if ok2 and setupSpeedControl(result2) then
+					return setupSpeedControl(result2)
 				end
-				local runtimeValue8 = parameter:FindFirstChild(item)
-				if runtimeValue8 then
+				local label = data:FindFirstChild(item)
+				if label then
 					ok2, result2 = pcall(function()
-						return runtimeValue8.Value
+						return label.Value
 					end)
-					if ok2 and utilityRoutine6(result2) then
-						return utilityRoutine6(result2)
+					if ok2 and setupSpeedControl(result2) then
+						return setupSpeedControl(result2)
 					end
 				end
 			end
 		end
-		local dataTable = {
+		local records = {
 			"MaxSpeed",
 			"SpeedLimit",
 			"MaximumSpeed",
 			"MaxGameSpeed"
 		}
-		local runtimeValue9 = utilityRoutine(runtimeValue4, {
+		local textValue = helperFunction(value, {
 			"MaxSpeed",
 			"SpeedLimit",
 			"MaximumSpeed",
 			"MaxGameSpeed",
 			"Max",
 			"Limit"
-		}) or utilityRoutine(game2, dataTable) or utilityRoutine(runtimeValue7, dataTable)
-		local runtimeValue10 = runtimeValue7 and runtimeValue7:FindFirstChild("ClockText")
-		local runtimeValue11 = tostring(runtimeValue9) .. "/" .. tostring(runtimeValue10 and runtimeValue10.Visible) .. "/" .. tostring(runtimeValue10 and runtimeValue10.Text)
-		return runtimeValue9, runtimeValue11
+		}) or helperFunction(game2, records) or helperFunction(element, records)
+		local indexValue = element and element:FindFirstChild("ClockText")
+		local cachedValue = tostring(textValue) .. "/" .. tostring(indexValue and indexValue.Visible) .. "/" .. tostring(indexValue and indexValue.Text)
+		return textValue, cachedValue
 	end
-	function speedControl.Step(parameter)
-		local runtimeValue4 = speedControl.Read()
-		local value, value1 = speedControl.Limit()
-		local runtimeValue5 = State.AutoMaxSpeed and "max" or "selected"
-		value1 = runtimeValue5 .. "/" .. value1 .. "/" .. tostring(State.Speed)
-		if value1 ~= speedControl.Signature then
-			speedControl.Signature, speedControl.Pending, speedControl.NextAt = value1, nil, parameter
+	function speedControl.Step(data)
+		-- Enforce the configured delay here so no caller can bypass it.
+		local requiredDelay = math.clamp(tonumber(State.SpeedScaleDelay) or 1, 1, 30)
+		if not speedControl.DelayStartedAt then
+			speedControl.DelayStartedAt = data
+			return
+		end
+		if data - speedControl.DelayStartedAt < requiredDelay then
+			return
+		end
+		-- Fix: preserve currentSpeed; the previous second local declaration shadowed it with maxSpeed.
+		local currentSpeed = speedControl.Read()
+		local maxSpeed, limitSignature = speedControl.Limit()
+		local modeSignature = State.AutoMaxSpeed and "max" or "selected"
+		limitSignature = modeSignature .. "/" .. tostring(limitSignature) .. "/" .. tostring(State.Speed)
+		if limitSignature ~= speedControl.Signature then
+			speedControl.Signature, speedControl.Pending, speedControl.NextAt = limitSignature, nil, data
 		end
 		local pending = speedControl.Pending
 		if pending then
-			if runtimeValue4 and runtimeValue4 ~= pending.Before then
-				speedControl.Pending, speedControl.NextAt = nil, parameter
-			elseif parameter - pending.At < .8 then
+			if currentSpeed and currentSpeed ~= pending.Before then
+				speedControl.Pending, speedControl.NextAt = nil, data
+			elseif data - pending.At < .8 then
 				return
 			else
-				speedControl.Pending, speedControl.NextAt = nil, parameter + 1
+				speedControl.Pending, speedControl.NextAt = nil, data + 1
 				return
 			end
 		end
-		if parameter < (speedControl.NextAt or 0) or not Remotes.Speed then
+		if data < (speedControl.NextAt or 0) or not Remotes.Speed then
 			return
 		end
-		local runtimeValue6
+		local targetSpeed
 		if State.AutoMaxSpeed then
-			runtimeValue6 = value or (runtimeValue4 and runtimeValue4 >= 1 and runtimeValue4 + 1 or 1)
+			targetSpeed = maxSpeed or (currentSpeed and currentSpeed >= 1 and currentSpeed + 1 or 1)
 		else
-			runtimeValue6 = math.clamp(tonumber(State.Speed) or 1, 1, 6)
+			targetSpeed = math.clamp(tonumber(State.Speed) or 1, 1, 6)
 		end
-		if runtimeValue4 == runtimeValue6 then
+		if currentSpeed == targetSpeed then
 			return
 		end
 		local ok2 = pcall(function()
-			Remotes.Speed:FireServer(runtimeValue6)
+			Remotes.Speed:FireServer(targetSpeed)
 		end)
-		speedControl.NextAt = parameter + (ok2 and .1 or 1)
+		speedControl.NextAt = data + (ok2 and .1 or 1)
 		if ok2 then
 			speedControl.Pending = {
-				Before = runtimeValue4,
-				Target = runtimeValue6,
-				At = parameter
+				Before = currentSpeed,
+				Target = targetSpeed,
+				At = data
 			}
 		end
 	end
@@ -3427,93 +3496,81 @@ end
 task.spawn(function()
 	local count = 0
 	local count2 = 0
-	local runtimeValue4 = nil
-	local stateFlag = false
+	local value = nil
+	local isActive = false
 	local count3 = 0
-	local stateFlag2 = false
-	local stateFlag3 = false
-	local stateFlag4 = false
-	local runtimeValue5 = - math.huge
+	local isEnabled = false
+	local wasUpdated = false
+	local isConnected = false
+	local result = - math.huge
 	while State.Running do
 		local now = os.clock()
 		if now - count3 >= 1 then
 			count3 = now
 			refreshRemotes()
 		end
-		if now - runtimeValue5 >= 0.5 then
-			runtimeValue5 = now
+		if now - result >= 0.5 then
+			result = now
 			Hub.MatchFlow.Bind()
 			Hub.MatchFlow.SkipCutscenes()
 			Hub.MatchFlow.UpdateLoadoutStatus()
 		end
-		local runtimeValue6 = isMatchEnded()
+		local child = isMatchEnded()
 		Hub.MatchFlow.UpdateRecorderClock()
-		local runtimeValue7 = towerData ~= nil and towerModels ~= nil and Remotes.Place ~= nil
-		local runtimeValue8 = State.PlaybackEnabled and State.ProfileName ~= ""
-		local runtimeValue9 = not runtimeValue8 or # State.Actions > 0
-		local runtimeValue10 = runtimeValue9 and (not runtimeValue8 or State.PlaybackFirstActionArmed)
-		if runtimeValue7 and not runtimeValue6 and getWave() > 0 then
+		local element = towerData ~= nil and towerModels ~= nil and Remotes.Place ~= nil
+		local label = State.PlaybackEnabled and State.ProfileName ~= ""
+		local textValue = not label or # State.Actions > 0
+		local indexValue = textValue and (not label or State.PlaybackFirstActionArmed)
+		if element and not child and getWave() > 0 then
 			State.LiveRoundStarted = true
-			if stateFlag4 or not State.ReportStartedAt then
+			if isConnected or not State.ReportStartedAt then
 				State.ReportStartedAt = now
 				State.ReportEndedAt = nil
 			end
-		elseif runtimeValue6 and State.ReportStartedAt and not State.ReportEndedAt then
+		elseif child and State.ReportStartedAt and not State.ReportEndedAt then
 			State.ReportEndedAt = now
 		end
-		if not runtimeValue7 or runtimeValue6 then
+		if not element or child then
 			State.AutoPlaybackStarted = false
 			State.PlaybackFirstActionArmed = false
 			State.PlaybackFirstActionDone = false
-			stateFlag2 = false
-			runtimeValue4 = nil
-			stateFlag = false
+			isEnabled = false
+			value = nil
+			isActive = false
 			Hub.SpeedControl.Reset()
-			stateFlag3 = false
-		elseif not stateFlag2 then
-			stateFlag2 = true
-			runtimeValue4 = nil
-			stateFlag = false
+			wasUpdated = false
+		elseif not isEnabled then
+			isEnabled = true
+			value = nil
+			isActive = false
 			Hub.SpeedControl.Reset()
-			stateFlag3 = false
+			wasUpdated = false
 		elseif State.PlaybackEnabled and not State.AutoPlaybackStarted and not State.Playing and not State.Recording and # State.Actions > 0 and UI.StartEnabledPlayback then
 			UI.StartEnabledPlayback()
 		end
-		if State.AutoReady and not runtimeValue6 and Remotes.Ready and not Hub.MatchFlow.PickerOpen() and now - count >= (State.ReadyDelay or 1) then
+		if State.AutoReady and not child and Remotes.Ready and not Hub.MatchFlow.PickerOpen() and now - count >= (State.ReadyDelay or 1) then
 			count = now
 			pcall(function()
 				Remotes.Ready:FireServer(true)
 			end)
 		end
-		if runtimeValue7 and runtimeValue9 and not runtimeValue10 and (State.AutoSpeed or State.AutoMaxSpeed or State.AutoSkip) and Remotes.Speed and not stateFlag3 then
-			stateFlag3 = true
-			pcall(function()
-				Remotes.Speed:FireServer(1)
-			end)
-		end
-		local runtimeValue11 = getPlayerGui()
-		local runtimeValue12 = runtimeValue11 and runtimeValue11:FindFirstChild("skipWave")
-		local runtimeValue13 = runtimeValue12 and runtimeValue12.Enabled == true
-		if State.AutoSkip and runtimeValue10 and not runtimeValue6 and Remotes.Skip and runtimeValue13 and shouldAutoSkip(getWave(), State.StopAutoSkipAt) and now - count2 >= (State.SkipDelay or 0.35) then
+		local cachedValue = getPlayerGui()
+		local nextValue = cachedValue and cachedValue:FindFirstChild("skipWave")
+		local currentValue = nextValue and nextValue.Enabled == true
+		if State.AutoSkip and indexValue and not child and Remotes.Skip and currentValue and shouldAutoSkip(getWave(), State.StopAutoSkipAt) and now - count2 >= (State.SkipDelay or 0.35) then
 			count2 = now
 			pcall(function()
 				Remotes.Skip:FireServer(true)
 			end)
 		end
-		local runtimeValue14 = (State.AutoSpeed or State.AutoMaxSpeed) and runtimeValue10 and runtimeValue7 and Remotes.Speed and not runtimeValue6
-		if State.SpeedConfigLoaded and runtimeValue7 and runtimeValue10 and not runtimeValue6 then
-			runtimeValue4 = runtimeValue4 or now
-			if now - runtimeValue4 >= math.clamp(tonumber(State.SpeedScaleDelay) or 1, 1, 30) then
-				stateFlag = true
-			end
-		elseif not stateFlag then
-			runtimeValue4 = nil
-		end
-		if runtimeValue14 and stateFlag then
+		local entryValue = (State.AutoSpeed or State.AutoMaxSpeed) and indexValue and element and Remotes.Speed and not child
+		if entryValue and State.SpeedConfigLoaded then
 			Hub.SpeedControl.Step(now)
+		else
+			Hub.SpeedControl.Reset()
 		end
-		if runtimeValue6 and not stateFlag4 then
-			stateFlag4 = true
+		if child and not isConnected then
+			isConnected = true
 			if State.AutoBackLobby and (State.LastCountedJobId ~= game.JobId or State.LiveRoundStarted) then
 				State.LastCountedJobId = game.JobId
 				State.MatchesCompleted = State.MatchesCompleted + 1
@@ -3539,10 +3596,10 @@ task.spawn(function()
 				break
 			end
 			Hub.MatchFlow.ReportMatchEnd()
-		elseif not runtimeValue6 then
-			stateFlag4 = false
+		elseif not child then
+			isConnected = false
 		end
-		Hub.MatchFlow.EndStep(runtimeValue6)
+		Hub.MatchFlow.EndStep(child)
 		task.wait(0.1)
 	end
 end)
@@ -3587,9 +3644,9 @@ function Hub.QueueTeleport()
 	Utilities.AutoExecuteError = not ok2 and tostring(result2) or nil
 	return ok2
 end
-function Hub.SetFPSBoost(parameter)
+function Hub.SetFPSBoost(data)
 	Utilities.FPSGeneration = (Utilities.FPSGeneration or 0) + 1
-	Utilities.FPSEnabled = parameter == true
+	Utilities.FPSEnabled = data == true
 	Utilities.FPSQueue = nil
 	if not Utilities.FPSEnabled then
 		for index, item in pairs(Utilities.FPSOriginal) do
@@ -3617,53 +3674,53 @@ function Hub.SetFPSBoost(parameter)
 		end
 	end)
 end
-function Utilities.FPSSet(parameter, parameter2, parameter3)
+function Utilities.FPSSet(data, options, callback)
 	local ok2, result2 = pcall(function()
-		return parameter[parameter2]
+		return data[options]
 	end)
 	if not ok2 then
 		return
 	end
-	local runtimeValue4 = Utilities.FPSOriginal[parameter]
-	if not runtimeValue4 then
-		runtimeValue4 = {}
-		Utilities.FPSOriginal[parameter] = runtimeValue4
+	local value = Utilities.FPSOriginal[data]
+	if not value then
+		value = {}
+		Utilities.FPSOriginal[data] = value
 	end
-	if runtimeValue4[parameter2] == nil then
-		runtimeValue4[parameter2] = result2
+	if value[options] == nil then
+		value[options] = result2
 	end
 	pcall(function()
-		parameter[parameter2] = parameter3
+		data[options] = callback
 	end)
 end
-function Utilities.ApplyFPS(parameter)
-	if parameter:IsA("ParticleEmitter") or parameter:IsA("Trail") or parameter:IsA("Beam") or parameter:IsA("Smoke") or parameter:IsA("Fire") or parameter:IsA("Sparkles") or parameter:IsA("PostEffect") then
-		Utilities.FPSSet(parameter, "Enabled", false)
-	elseif parameter:IsA("BasePart") then
-		Utilities.FPSSet(parameter, "CastShadow", false)
-		Utilities.FPSSet(parameter, "Material", Enum.Material.SmoothPlastic)
-	elseif parameter:IsA("Decal") or parameter:IsA("Texture") then
-		Utilities.FPSSet(parameter, "Transparency", 1)
+function Utilities.ApplyFPS(data)
+	if data:IsA("ParticleEmitter") or data:IsA("Trail") or data:IsA("Beam") or data:IsA("Smoke") or data:IsA("Fire") or data:IsA("Sparkles") or data:IsA("PostEffect") then
+		Utilities.FPSSet(data, "Enabled", false)
+	elseif data:IsA("BasePart") then
+		Utilities.FPSSet(data, "CastShadow", false)
+		Utilities.FPSSet(data, "Material", Enum.Material.SmoothPlastic)
+	elseif data:IsA("Decal") or data:IsA("Texture") then
+		Utilities.FPSSet(data, "Transparency", 1)
 	end
 end
-function Utilities.QueueFPS(parameter)
+function Utilities.QueueFPS(data)
 	if not State.Running or not Utilities.FPSEnabled then
 		return
 	end
 	if Utilities.FPSQueue then
-		table.insert(Utilities.FPSQueue, parameter)
+		table.insert(Utilities.FPSQueue, data)
 		return
 	end
-	local dataTable = {
-		parameter
+	local records = {
+		data
 	}
-	Utilities.FPSQueue = dataTable
+	Utilities.FPSQueue = records
 	task.defer(function()
 		local count, now = 1, os.clock()
-		while State.Running and Utilities.FPSEnabled and Utilities.FPSQueue == dataTable and count <= # dataTable do
-			local runtimeValue4 = dataTable[count]
-			if runtimeValue4.Parent then
-				pcall(Utilities.ApplyFPS, runtimeValue4)
+		while State.Running and Utilities.FPSEnabled and Utilities.FPSQueue == records and count <= # records do
+			local value = records[count]
+			if value.Parent then
+				pcall(Utilities.ApplyFPS, value)
 			end
 			count = count + 1
 			if count % 16 == 0 and os.clock() - now >= 0.002 then
@@ -3671,7 +3728,7 @@ function Utilities.QueueFPS(parameter)
 				now = os.clock()
 			end
 		end
-		if Utilities.FPSQueue == dataTable then
+		if Utilities.FPSQueue == records then
 			Utilities.FPSQueue = nil
 		end
 	end)
@@ -3686,53 +3743,53 @@ function Utilities.RestoreNames()
 	end
 	Utilities.Hidden = {}
 end
-function Utilities.IsOwnName(parameter)
-	local matched2 = tostring(parameter or ""):match("^%s*(.-)%s*$")
+function Utilities.IsOwnName(data)
+	local matched2 = tostring(data or ""):match("^%s*(.-)%s*$")
 	return matched2 == LocalPlayer.Name or matched2 == "@" .. LocalPlayer.Name or LocalPlayer.DisplayName ~= "" and matched2 == LocalPlayer.DisplayName
 end
-function Utilities.WatchName(parameter, parameter2)
-	if parameter:IsA("Humanoid") and parameter2 then
-		Utilities.Hidden[parameter] = {
-			DisplayName = parameter.DisplayName,
-			NameDisplayDistance = parameter.NameDisplayDistance
+function Utilities.WatchName(data, options)
+	if data:IsA("Humanoid") and options then
+		Utilities.Hidden[data] = {
+			DisplayName = data.DisplayName,
+			NameDisplayDistance = data.NameDisplayDistance
 		}
-		parameter.DisplayName, parameter.NameDisplayDistance = "", 0
+		data.DisplayName, data.NameDisplayDistance = "", 0
 		return
 	end
-	if not (parameter:IsA("TextLabel") or parameter:IsA("TextButton")) or Utilities.NameWatched[parameter] then
+	if not (data:IsA("TextLabel") or data:IsA("TextButton")) or Utilities.NameWatched[data] then
 		return
 	end
-	Utilities.NameWatched[parameter] = true
-	local function utilityRoutine()
+	Utilities.NameWatched[data] = true
+	local function helperFunction()
 		if not State.Running or not Utilities.NamesEnabled then
 			return
 		end
-		local str = tostring(parameter.Text or "")
-		local runtimeValue4 = Utilities.IsOwnName(str)
-		if parameter2 and parameter:FindFirstAncestorWhichIsA("BillboardGui") then
-			runtimeValue4 = runtimeValue4 or str:find(LocalPlayer.Name, 1, true) ~= nil or LocalPlayer.DisplayName ~= "" and str:find(LocalPlayer.DisplayName, 1, true) ~= nil
+		local str = tostring(data.Text or "")
+		local value = Utilities.IsOwnName(str)
+		if options and data:FindFirstAncestorWhichIsA("BillboardGui") then
+			value = value or str:find(LocalPlayer.Name, 1, true) ~= nil or LocalPlayer.DisplayName ~= "" and str:find(LocalPlayer.DisplayName, 1, true) ~= nil
 		end
-		if runtimeValue4 then
-			if not Utilities.Hidden[parameter] then
-				Utilities.Hidden[parameter] = {
-					Visible = parameter.Visible,
-					TextTransparency = parameter.TextTransparency,
-					TextStrokeTransparency = parameter.TextStrokeTransparency
+		if value then
+			if not Utilities.Hidden[data] then
+				Utilities.Hidden[data] = {
+					Visible = data.Visible,
+					TextTransparency = data.TextTransparency,
+					TextStrokeTransparency = data.TextStrokeTransparency
 				}
 			end
-			parameter.Visible, parameter.TextTransparency, parameter.TextStrokeTransparency = false, 1, 1
-		elseif Utilities.Hidden[parameter] then
-			for index, item in pairs(Utilities.Hidden[parameter]) do
-				parameter[index] = item
+			data.Visible, data.TextTransparency, data.TextStrokeTransparency = false, 1, 1
+		elseif Utilities.Hidden[data] then
+			for index, item in pairs(Utilities.Hidden[data]) do
+				data[index] = item
 			end
-			Utilities.Hidden[parameter] = nil
+			Utilities.Hidden[data] = nil
 		end
 	end
-	trackConnection(Utilities.NameConnections, parameter:GetPropertyChangedSignal("Text"):Connect(utilityRoutine))
-	utilityRoutine()
+	trackConnection(Utilities.NameConnections, data:GetPropertyChangedSignal("Text"):Connect(helperFunction))
+	helperFunction()
 end
-function Hub.SetHideName(parameter)
-	Utilities.NamesEnabled = parameter == true
+function Hub.SetHideName(data)
+	Utilities.NamesEnabled = data == true
 	Utilities.NameGeneration = (Utilities.NameGeneration or 0) + 1
 	local nameGeneration = Utilities.NameGeneration
 	disconnectAll(Utilities.NameConnections)
@@ -3743,43 +3800,43 @@ function Hub.SetHideName(parameter)
 	if not Utilities.NamesEnabled then
 		return
 	end
-	local function utilityRoutine(parameter2, parameter3)
-		if not parameter2 then
+	local function helperFunction(options, callback)
+		if not options then
 			return
 		end
-		for _, item in ipairs(parameter2:GetDescendants()) do
-			pcall(Utilities.WatchName, item, parameter3)
+		for _, item in ipairs(options:GetDescendants()) do
+			pcall(Utilities.WatchName, item, callback)
 		end
-		trackConnection(Utilities.NameConnections, parameter2.DescendantAdded:Connect(function(parameter4)
+		trackConnection(Utilities.NameConnections, options.DescendantAdded:Connect(function(context)
 			task.defer(function()
 				if State.Running and Utilities.NamesEnabled and nameGeneration == Utilities.NameGeneration then
-					pcall(Utilities.WatchName, parameter4, parameter3)
+					pcall(Utilities.WatchName, context, callback)
 				end
 			end)
 		end))
 	end
-	utilityRoutine(LocalPlayer.Character, true)
-	utilityRoutine(getPlayerGui(), false)
+	helperFunction(LocalPlayer.Character, true)
+	helperFunction(getPlayerGui(), false)
 	pcall(function()
-		utilityRoutine(game:GetService("CoreGui"), false)
+		helperFunction(game:GetService("CoreGui"), false)
 	end)
 end
 function Hub.StartRejoin()
 	if Hub.Rejoin then
 		return
 	end
-	local dataTable = {
+	local records = {
 		Active = true,
 		Attempts = 0,
 		Connections = {},
 		Message = "Monitoring connection"
 	}
-	Hub.Rejoin = dataTable
-	function dataTable.ConnectionError(parameter)
-		if type(parameter) ~= "string" or parameter == "" then
+	Hub.Rejoin = records
+	function records.ConnectionError(data)
+		if type(data) ~= "string" or data == "" then
 			return false
 		end
-		local lowered = parameter:lower()
+		local lowered = data:lower()
 		return lowered:find("disconnect", 1, true) ~= nil
 			or lowered:find("kicked", 1, true) ~= nil
 			or lowered:find("kick", 1, true) ~= nil
@@ -3788,67 +3845,67 @@ function Hub.StartRejoin()
 			or lowered:find("reconnect", 1, true) ~= nil
 			or lowered:match("error%s*code%s*:%s*%d+") ~= nil
 	end
-	function dataTable.ReadPrompt()
+	function records.ReadPrompt()
 		local coreGui = game:GetService("CoreGui")
 		local robloxPromptGui = coreGui:FindFirstChild("RobloxPromptGui")
 		if not robloxPromptGui then
 			return nil
 		end
-		local function utilityRoutine(parameter)
-			while parameter do
-				if parameter:IsA("GuiObject") and not parameter.Visible then
+		local function helperFunction(data)
+			while data do
+				if data:IsA("GuiObject") and not data.Visible then
 					return false
 				end
-				if parameter:IsA("ScreenGui") and not parameter.Enabled then
+				if data:IsA("ScreenGui") and not data.Enabled then
 					return false
 				end
-				parameter = parameter.Parent
+				data = data.Parent
 			end
 			return true
 		end
-		local dataTable2 = {}
+		local copiedData = {}
 		local errorPrompt = robloxPromptGui:FindFirstChild("ErrorPrompt", true)
-		if not errorPrompt or not utilityRoutine(errorPrompt) then
+		if not errorPrompt or not helperFunction(errorPrompt) then
 			return nil
 		end
 		for _, item in ipairs(errorPrompt:GetDescendants()) do
-			if item:IsA("TextLabel") and utilityRoutine(item) and item.Text ~= "" then
-				table.insert(dataTable2, item.Text)
+			if item:IsA("TextLabel") and helperFunction(item) and item.Text ~= "" then
+				table.insert(copiedData, item.Text)
 			end
 		end
-		return # dataTable2 > 0 and table.concat(dataTable2, " | ") or nil
+		return # copiedData > 0 and table.concat(copiedData, " | ") or nil
 	end
-	function dataTable.Step(parameter)
-		if not dataTable.Active or not State.Running then
+	function records.Step(data)
+		if not records.Active or not State.Running then
 			return
 		end
 		local now = os.clock()
-		if dataTable.InFlight then
-			if now - dataTable.InFlight < 45 then
+		if records.InFlight then
+			if now - records.InFlight < 45 then
 				return
 			end
-			dataTable.InFlight = nil
+			records.InFlight = nil
 		end
-		if not dataTable.ConnectionError(parameter) then
-			dataTable.Prompt, dataTable.NextAt, dataTable.Attempts = nil, nil, 0
+		if not records.ConnectionError(data) then
+			records.Prompt, records.NextAt, records.Attempts = nil, nil, 0
 			return
 		end
-		if not dataTable.Prompt then
-			dataTable.Prompt = parameter
-			dataTable.NextAt = now + 3
+		if not records.Prompt then
+			records.Prompt = data
+			records.NextAt = now + 3
 		end
-		if now < dataTable.NextAt then
+		if now < records.NextAt then
 			return
 		end
-		dataTable.Attempts = dataTable.Attempts + 1
-		dataTable.NextAt = now + ({
+		records.Attempts = records.Attempts + 1
+		records.NextAt = now + ({
 			10,
 			20,
 			30,
 			60
-		})[math.min(dataTable.Attempts, 4)]
-		dataTable.InFlight = now
-		dataTable.Message = "Rejoining lobby | attempt " .. dataTable.Attempts
+		})[math.min(records.Attempts, 4)]
+		records.InFlight = now
+		records.Message = "Rejoining lobby | attempt " .. records.Attempts
 		if UI.SaveConfigNow then
 			pcall(UI.SaveConfigNow)
 		end
@@ -3857,47 +3914,47 @@ function Hub.StartRejoin()
 			TeleportService:Teleport(LOBBY_PLACE_ID, LocalPlayer)
 		end)
 		if not ok2 then
-			dataTable.InFlight = nil
-			dataTable.Message = "Retrying lobby: " .. tostring(result2)
+			records.InFlight = nil
+			records.Message = "Retrying lobby: " .. tostring(result2)
 		end
 	end
-	function dataTable.Stop()
-		dataTable.Active = false
-		disconnectAll(dataTable.Connections)
+	function records.Stop()
+		records.Active = false
+		disconnectAll(records.Connections)
 	end
-	trackConnection(dataTable.Connections, TeleportService.TeleportInitFailed:Connect(function(parameter, parameter2, _, parameter3)
-		if parameter ~= LocalPlayer or parameter3 ~= LOBBY_PLACE_ID or dataTable.Attempts == 0 then
+	trackConnection(records.Connections, TeleportService.TeleportInitFailed:Connect(function(data, options, _, callback)
+		if data ~= LocalPlayer or callback ~= LOBBY_PLACE_ID or records.Attempts == 0 then
 			return
 		end
-		dataTable.InFlight = nil
-		dataTable.Message = "Lobby teleport failed; retrying | " .. tostring(parameter2)
+		records.InFlight = nil
+		records.Message = "Lobby teleport failed; retrying | " .. tostring(options)
 	end))
-	trackConnection(dataTable.Connections, LocalPlayer.OnTeleport:Connect(function(parameter)
-		if dataTable.Attempts == 0 then
+	trackConnection(records.Connections, LocalPlayer.OnTeleport:Connect(function(data)
+		if records.Attempts == 0 then
 			return
 		end
-		if parameter == Enum.TeleportState.Failed then
-			dataTable.InFlight = nil
+		if data == Enum.TeleportState.Failed then
+			records.InFlight = nil
 		end
 	end))
 	pcall(function()
 		local guiService = game:GetService("GuiService")
-		trackConnection(dataTable.Connections, guiService.ErrorMessageChanged:Connect(function(parameter)
-			dataTable.EventText = parameter
+		trackConnection(records.Connections, guiService.ErrorMessageChanged:Connect(function(data)
+			records.EventText = data
 		end))
-		dataTable.GuiService = guiService
+		records.GuiService = guiService
 	end)
 	task.spawn(function()
-		while State.Running and dataTable.Active do
-			local ok2, result2 = pcall(dataTable.ReadPrompt)
-			local runtimeValue4 = ok2 and result2 or nil
-			if not runtimeValue4 and dataTable.GuiService then
+		while State.Running and records.Active do
+			local ok2, result2 = pcall(records.ReadPrompt)
+			local value = ok2 and result2 or nil
+			if not value and records.GuiService then
 				local ok3, result3 = pcall(function()
-					return dataTable.GuiService:GetErrorMessage()
+					return records.GuiService:GetErrorMessage()
 				end)
-				runtimeValue4 = ok3 and result3 or dataTable.EventText
+				value = ok3 and result3 or records.EventText
 			end
-			pcall(dataTable.Step, runtimeValue4)
+			pcall(records.Step, value)
 			task.wait(1)
 		end
 	end)
@@ -3913,8 +3970,8 @@ function Hub.StartUtilities()
 			virtualUser:ClickButton2(Vector2.new(0, 0))
 		end)
 	end))
-	trackConnection(Utilities.Connections, LocalPlayer.OnTeleport:Connect(function(parameter)
-		if parameter == Enum.TeleportState.Started then
+	trackConnection(Utilities.Connections, LocalPlayer.OnTeleport:Connect(function(data)
+		if data == Enum.TeleportState.Started then
 			if UI.SaveConfigNow then
 				pcall(UI.SaveConfigNow)
 			end
@@ -3953,34 +4010,34 @@ Knock.VisiblePrompts = setmetatable({}, {
 	__mode = "k"
 })
 Hub.Knock = Knock
-function Knock.Status(parameter)
-	Knock.Message = parameter
+function Knock.Status(data)
+	Knock.Message = data
 	if UI.KnockStatus then
-		UI.KnockStatus:SetDesc(parameter)
+		UI.KnockStatus:SetDesc(data)
 	end
 end
-function Knock.Alive(parameter)
-	return State.Running and State.AutoKnockDoor and parameter == Knock.Session
+function Knock.Alive(data)
+	return State.Running and State.AutoKnockDoor and data == Knock.Session
 end
-function Knock.CooldownSeconds(parameter)
-	parameter = tostring(parameter or ""):lower()
-	if not parameter:find("cooldown", 1, true) then
+function Knock.CooldownSeconds(data)
+	data = tostring(data or ""):lower()
+	if not data:find("cooldown", 1, true) then
 		return nil
 	end
-	local runtimeValue4 = tonumber(parameter:match("(%d+)%s+minute")) or 0
-	local runtimeValue5 = tonumber(parameter:match("(%d+)%s+second")) or 0
-	return runtimeValue4 * 60 + runtimeValue5 > 0 and runtimeValue4 * 60 + runtimeValue5 or nil
+	local value = tonumber(data:match("(%d+)%s+minute")) or 0
+	local result = tonumber(data:match("(%d+)%s+second")) or 0
+	return value * 60 + result > 0 and value * 60 + result or nil
 end
 function Knock.SaveCooldowns()
 	if not hasFileApi then
 		return
 	end
 	pcall(function()
-		local runtimeValue4 = MACRO_FOLDER .. "/Knock"
-		if not isfolder(runtimeValue4) then
-			makefolder(runtimeValue4)
+		local value = MACRO_FOLDER .. "/Knock"
+		if not isfolder(value) then
+			makefolder(value)
 		end
-		writefile(runtimeValue4 .. "/" .. LocalPlayer.UserId .. ".json", HttpService:JSONEncode(Knock.Cooldowns))
+		writefile(value .. "/" .. LocalPlayer.UserId .. ".json", HttpService:JSONEncode(Knock.Cooldowns))
 	end)
 end
 function Knock.LoadCooldowns()
@@ -3988,11 +4045,11 @@ function Knock.LoadCooldowns()
 		return
 	end
 	pcall(function()
-		local runtimeValue4 = MACRO_FOLDER .. "/Knock/" .. LocalPlayer.UserId .. ".json"
-		if not isfile(runtimeValue4) then
+		local value = MACRO_FOLDER .. "/Knock/" .. LocalPlayer.UserId .. ".json"
+		if not isfile(value) then
 			return
 		end
-		local decoded = HttpService:JSONDecode(readfile(runtimeValue4))
+		local decoded = HttpService:JSONDecode(readfile(value))
 		local timestamp = os.time()
 		if type(decoded) ~= "table" then
 			return
@@ -4004,30 +4061,30 @@ function Knock.LoadCooldowns()
 		end
 	end)
 end
-function Knock.SetCooldown(parameter, parameter2)
-	Knock.Cooldowns[parameter.Name] = os.time() + math.ceil(parameter2) + 2
+function Knock.SetCooldown(data, options)
+	Knock.Cooldowns[data.Name] = os.time() + math.ceil(options) + 2
 	Knock.SaveCooldowns()
 end
-function Knock.Ready(parameter)
-	return (Knock.Cooldowns[parameter.Name] or 0) <= os.time() and (Knock.RetryAt[parameter.Name] or 0) <= os.clock()
+function Knock.Ready(data)
+	return (Knock.Cooldowns[data.Name] or 0) <= os.time() and (Knock.RetryAt[data.Name] or 0) <= os.clock()
 end
 function Knock.Doors()
-	local dataTable = {}
+	local records = {}
 	for _, item in ipairs(Workspace:GetChildren()) do
 		if item:IsA("Model") and item.Name:match("^Door%d+$") then
 			local proximityPrompt = item:FindFirstChildWhichIsA("ProximityPrompt", true)
 			if proximityPrompt then
-				dataTable[# dataTable + 1] = {
+				records[# records + 1] = {
 					Door = item,
 					Prompt = proximityPrompt
 				}
 			end
 		end
 	end
-	return dataTable
+	return records
 end
-function Knock.PromptPosition(parameter)
-	local parent = parameter.Parent
+function Knock.PromptPosition(data)
+	local parent = data.Parent
 	if parent and parent:IsA("Attachment") then
 		return parent.WorldPosition
 	end
@@ -4057,26 +4114,26 @@ function Knock.CancelMove()
 		end
 	end
 end
-function Knock.OwnWalk(parameter)
-	Knock.MovingHumanoid = parameter
+function Knock.OwnWalk(data)
+	Knock.MovingHumanoid = data
 	if Knock.WalkControls then
 		return
 	end
 	pcall(function()
 		local playerScripts = LocalPlayer:FindFirstChild("PlayerScripts")
-		local runtimeValue4 = playerScripts and playerScripts:FindFirstChild("PlayerModule")
-		if not runtimeValue4 then
+		local value = playerScripts and playerScripts:FindFirstChild("PlayerModule")
+		if not value then
 			return
 		end
-		local runtimeValue5 = require(runtimeValue4):GetControls()
-		Knock.RestoreControls = runtimeValue5.controlsEnabled ~= false
-		Knock.WalkControls = runtimeValue5
-		runtimeValue5:Disable()
+		local result = require(value):GetControls()
+		Knock.RestoreControls = result.controlsEnabled ~= false
+		Knock.WalkControls = result
+		result:Disable()
 	end)
 end
-function Knock.ReachedWaypoint(parameter, parameter2, parameter3)
-	local runtimeValue4 = parameter.Position - parameter2
-	return math.sqrt(runtimeValue4.X * runtimeValue4.X + runtimeValue4.Z * runtimeValue4.Z) < parameter3 and math.abs(runtimeValue4.Y) < 6
+function Knock.ReachedWaypoint(data, options, callback)
+	local value = data.Position - options
+	return math.sqrt(value.X * value.X + value.Z * value.Z) < callback and math.abs(value.Y) < 6
 end
 function Knock.ReleaseCamera()
 	local savedCamera = Knock.SavedCamera
@@ -4094,31 +4151,34 @@ function Knock.ReleaseCamera()
 		savedCamera.Camera.CameraType = savedCamera.Type
 	end)
 end
-function Knock.PromptReady(parameter)
+function Knock.PromptReady(prompt)
 	local character = LocalPlayer.Character
-	local runtimeValue4 = character and character:FindFirstChild("HumanoidRootPart")
-	local runtimeValue5 = Knock.PromptPosition(parameter)
+	local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+	local promptPosition = Knock.PromptPosition(prompt)
 	local currentCamera = Workspace.CurrentCamera
-	if not currentCamera or not runtimeValue4 or not runtimeValue5 or not parameter.Enabled or (runtimeValue4.Position - runtimeValue5).Magnitude >= parameter.MaxActivationDistance then
+	if not currentCamera or not rootPart or not promptPosition or not prompt.Enabled
+		or (rootPart.Position - promptPosition).Magnitude >= prompt.MaxActivationDistance then
 		return false
 	end
-	local value, value1 = currentCamera:WorldToViewportPoint(runtimeValue5)
-	if not value1 or value.Z <= 0 or Knock.VisiblePrompts[parameter] == false then
+	local screenPosition, isOnScreen = currentCamera:WorldToViewportPoint(promptPosition)
+	if not isOnScreen or screenPosition.Z <= 0 or Knock.VisiblePrompts[prompt] == false then
 		return false
 	end
-	local runtimeValue6 = RaycastParams.new()
-	runtimeValue6.FilterType = Enum.RaycastFilterType.Exclude
-	runtimeValue6.FilterDescendantsInstances = {
-		character
-	}
-	local runtimeValue7 = Workspace:Raycast(currentCamera.CFrame.Position, runtimeValue5 - currentCamera.CFrame.Position, runtimeValue6)
-	return not runtimeValue7 or (runtimeValue7.Position - runtimeValue5).Magnitude < 1.8
+	local raycastParams = RaycastParams.new()
+	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+	raycastParams.FilterDescendantsInstances = { character }
+	local obstruction = Workspace:Raycast(
+		currentCamera.CFrame.Position,
+		promptPosition - currentCamera.CFrame.Position,
+		raycastParams
+	)
+	return not obstruction or (obstruction.Position - promptPosition).Magnitude < 1.8
 end
-function Knock.FocusPrompt(parameter, parameter2)
+function Knock.FocusPrompt(data, options)
 	local currentCamera = Workspace.CurrentCamera
-	local runtimeValue4 = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-	local runtimeValue5 = Knock.PromptPosition(parameter.Prompt)
-	if not currentCamera or not runtimeValue4 or not runtimeValue5 or not Knock.Alive(parameter2) then
+	local value = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+	local result = Knock.PromptPosition(data.Prompt)
+	if not currentCamera or not value or not result or not Knock.Alive(options) then
 		return false
 	end
 	if not Knock.SavedCamera then
@@ -4137,8 +4197,8 @@ function Knock.FocusPrompt(parameter, parameter2)
 	if not Knock.SavedCamera.Owned then
 		return false
 	end
-	Knock.Status(parameter.Door.Name .. " | Facing door / waiting for E")
-	local vector = Vector3.new(runtimeValue4.Position.X - runtimeValue5.X, 0, runtimeValue4.Position.Z - runtimeValue5.Z)
+	Knock.Status(data.Door.Name .. " | Facing door / waiting for E")
+	local vector = Vector3.new(value.Position.X - result.X, 0, value.Position.Z - result.Z)
 	if vector.Magnitude < 0.1 then
 		return false
 	end
@@ -4148,22 +4208,22 @@ function Knock.FocusPrompt(parameter, parameter2)
 		2,
 		6
 	}) do
-		if not Knock.Alive(parameter2) then
+		if not Knock.Alive(options) then
 			return false
 		end
 		currentCamera.CameraType = Enum.CameraType.Scriptable
-		local runtimeValue6 = runtimeValue4.Position + vector * item + Vector3.new(0, 2.5, 0)
-		currentCamera.CFrame = CFrame.lookAt(runtimeValue6, runtimeValue5)
-		currentCamera.Focus = CFrame.new(runtimeValue5)
-		local runtimeValue7 = os.clock() + 0.7
+		local child = value.Position + vector * item + Vector3.new(0, 2.5, 0)
+		currentCamera.CFrame = CFrame.lookAt(child, result)
+		currentCamera.Focus = CFrame.new(result)
+		local element = os.clock() + 0.7
 		repeat
 			task.wait(0.05)
-			if not Knock.Alive(parameter2) then
+			if not Knock.Alive(options) then
 				return false
 			end
-			if Knock.PromptReady(parameter.Prompt) then
+			if Knock.PromptReady(data.Prompt) then
 				task.wait(0.1)
-				if Knock.Alive(parameter2) and Knock.PromptReady(parameter.Prompt) then
+				if Knock.Alive(options) and Knock.PromptReady(data.Prompt) then
 					if Knock.LastAttempt then
 						Knock.LastAttempt.CameraAimed = true
 						Knock.LastAttempt.PromptVisible = true
@@ -4171,125 +4231,132 @@ function Knock.FocusPrompt(parameter, parameter2)
 					return true
 				end
 			end
-		until os.clock() >= runtimeValue7
+		until os.clock() >= element
 	end
 	return false
 end
-function Knock.Targets(parameter, parameter2, parameter3)
-	local prompt = parameter.Prompt
-	local runtimeValue4 = Knock.PromptPosition(prompt)
-	if not runtimeValue4 then
+function Knock.Targets(doorRecord, rootPart, humanoid)
+	local prompt = doorRecord.Prompt
+	local promptPosition = Knock.PromptPosition(prompt)
+	if not promptPosition then
 		return {}
 	end
-	local camCF = parameter.Door:FindFirstChild("CamCF", true)
-	local runtimeValue5 = camCF and camCF:IsA("BasePart") and camCF.Position - runtimeValue4
-	runtimeValue5 = runtimeValue5 and Vector3.new(runtimeValue5.X, 0, runtimeValue5.Z)
-	if not runtimeValue5 or runtimeValue5.Magnitude < 0.1 then
-		local parent = prompt.Parent
-		local runtimeValue6 = parent:IsA("Attachment") and parent.WorldCFrame or parent:IsA("BasePart") and parent.CFrame or parameter.Door:GetPivot()
-		runtimeValue5 = Vector3.new(runtimeValue6.LookVector.X, 0, runtimeValue6.LookVector.Z)
+	local cameraPart = doorRecord.Door:FindFirstChild("CamCF", true)
+	local forward = cameraPart and cameraPart:IsA("BasePart") and cameraPart.Position - promptPosition
+	forward = forward and Vector3.new(forward.X, 0, forward.Z)
+	if not forward or forward.Magnitude < 0.1 then
+		local promptParent = prompt.Parent
+		local facingCFrame = promptParent and promptParent:IsA("Attachment") and promptParent.WorldCFrame
+			or promptParent and promptParent:IsA("BasePart") and promptParent.CFrame
+			or doorRecord.Door:GetPivot()
+		forward = Vector3.new(facingCFrame.LookVector.X, 0, facingCFrame.LookVector.Z)
 	end
-	if runtimeValue5.Magnitude < 0.1 then
+	if forward.Magnitude < 0.1 then
 		return {}
 	end
-	runtimeValue5 = runtimeValue5.Unit
-	local runtimeValue7 = tonumber(prompt.MaxActivationDistance) or 10
-	if runtimeValue7 < 3 then
+	forward = forward.Unit
+	local maxDistance = tonumber(prompt.MaxActivationDistance) or 10
+	if maxDistance < 3 then
 		return {}
 	end
-	local runtimeValue8 = RaycastParams.new()
-	runtimeValue8.FilterType = Enum.RaycastFilterType.Exclude
-	runtimeValue8.FilterDescendantsInstances = {
+	local groundRaycastParams = RaycastParams.new()
+	groundRaycastParams.FilterType = Enum.RaycastFilterType.Exclude
+	groundRaycastParams.FilterDescendantsInstances = {
 		LocalPlayer.Character
 	}
-	runtimeValue8.RespectCanCollide = true
-	local runtimeValue9 = OverlapParams.new()
-	runtimeValue9.FilterType = Enum.RaycastFilterType.Exclude
-	runtimeValue9.FilterDescendantsInstances = {
+	groundRaycastParams.RespectCanCollide = true
+	local occupancyParams = OverlapParams.new()
+	occupancyParams.FilterType = Enum.RaycastFilterType.Exclude
+	occupancyParams.FilterDescendantsInstances = {
 		LocalPlayer.Character
 	}
-	runtimeValue9.RespectCanCollide = true
-	local runtimeValue10 = parameter3.HipHeight or 2
-	if runtimeValue10 <= 0 then
-		local runtimeValue11 = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Left Leg")
-		runtimeValue10 = runtimeValue11 and runtimeValue11.Size.Y or 2
+	occupancyParams.RespectCanCollide = true
+	local hipHeight = humanoid.HipHeight or 2
+	if hipHeight <= 0 then
+		local leftLeg = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Left Leg")
+		hipHeight = leftLeg and leftLeg.Size.Y or 2
 	end
-	local runtimeValue12 = runtimeValue10 + parameter2.Size.Y / 2
-	local dataTable = {}
-	for _, item in ipairs({
-		math.min(4.5, runtimeValue7 - 1.5),
-		math.min(6.5, runtimeValue7 - 1)
+	local targetHeight = hipHeight + rootPart.Size.Y / 2
+	local targets = {}
+	for _, radialDistance in ipairs({
+		math.min(4.5, maxDistance - 1.5),
+		math.min(6.5, maxDistance - 1)
 	}) do
-		for _, item3 in ipairs({
+		for _, angleDegrees in ipairs({
 			0,
 			25,
-			- 25,
+			-25,
 			50,
-			- 50
+			-50
 		}) do
-			local num = math.rad(item3)
-			local vector = Vector3.new(runtimeValue5.X * math.cos(num) - runtimeValue5.Z * math.sin(num), 0, runtimeValue5.X * math.sin(num) + runtimeValue5.Z * math.cos(num))
-			local runtimeValue13 = runtimeValue4 + vector * item
-			local runtimeValue14 = Workspace:Raycast(runtimeValue13 + Vector3.new(0, 8, 0), Vector3.new(0, - 28, 0), runtimeValue8)
-			if runtimeValue14 and runtimeValue14.Normal.Y > 0.65 and runtimeValue14.Position.Y <= runtimeValue4.Y + 1.5 and runtimeValue14.Position.Y >= runtimeValue4.Y - 12 then
-				local runtimeValue15 = runtimeValue14.Position + Vector3.new(0, runtimeValue12 + 0.1, 0)
-				local vector2 = Vector3.new(runtimeValue4.X, runtimeValue15.Y, runtimeValue4.Z)
-				local cframe = CFrame.lookAt(runtimeValue15, vector2)
-				local stateFlag = true
-				for _, item4 in ipairs(Workspace:GetPartBoundsInBox(cframe, Vector3.new(3.4, 4.5, 2.6), runtimeValue9)) do
-					if item4.CanCollide then
-						stateFlag = false
+			local angle = math.rad(angleDegrees)
+			local direction = Vector3.new(
+				forward.X * math.cos(angle) - forward.Z * math.sin(angle),
+				0,
+				forward.X * math.sin(angle) + forward.Z * math.cos(angle)
+			)
+			local groundProbe = promptPosition + direction * radialDistance
+			local groundHit = Workspace:Raycast(groundProbe + Vector3.new(0, 8, 0), Vector3.new(0, -28, 0), groundRaycastParams)
+			if groundHit and groundHit.Normal.Y > 0.65 and groundHit.Position.Y <= promptPosition.Y + 1.5 and groundHit.Position.Y >= promptPosition.Y - 12 then
+				local targetPosition = groundHit.Position + Vector3.new(0, targetHeight + 0.1, 0)
+				local lookAtPosition = Vector3.new(promptPosition.X, targetPosition.Y, promptPosition.Z)
+				local targetCFrame = CFrame.lookAt(targetPosition, lookAtPosition)
+				local isClear = true
+				for _, part in ipairs(Workspace:GetPartBoundsInBox(targetCFrame, Vector3.new(3.4, 4.5, 2.6), occupancyParams)) do
+					if part.CanCollide then
+						isClear = false
 						break
 					end
 				end
-				if stateFlag and (runtimeValue15 - runtimeValue4).Magnitude < runtimeValue7 - 0.3 then
-					local runtimeValue16 = Workspace:Raycast(runtimeValue15, runtimeValue4 - runtimeValue15, runtimeValue8)
-					local runtimeValue18 = not runtimeValue16 or (runtimeValue16.Position - runtimeValue4).Magnitude < 1.8
-					if not prompt.RequiresLineOfSight or runtimeValue18 then
-						dataTable[# dataTable + 1] = {
-							Position = runtimeValue15,
-							CFrame = cframe
+				if isClear and (targetPosition - promptPosition).Magnitude < maxDistance - 0.3 then
+					local lineOfSightHit = Workspace:Raycast(targetPosition, promptPosition - targetPosition, groundRaycastParams)
+					local hasLineOfSight = not lineOfSightHit or (lineOfSightHit.Position - promptPosition).Magnitude < 1.8
+					if not prompt.RequiresLineOfSight or hasLineOfSight then
+						targets[#targets + 1] = {
+							Position = targetPosition,
+							CFrame = targetCFrame
 						}
 					end
 				end
 			end
 		end
 	end
-	return dataTable
+	return targets
 end
-function Knock.Travel(parameter, parameter2, parameter3)
+
+function Knock.Travel(data, options, callback)
 	local character = LocalPlayer.Character
-	local runtimeValue4 = character and character:FindFirstChild("HumanoidRootPart")
-	local runtimeValue5 = character and character:FindFirstChildOfClass("Humanoid")
-	local runtimeValue6 = Knock.PromptPosition(parameter.Prompt)
-	if not runtimeValue4 or not runtimeValue5 or not runtimeValue6 or runtimeValue5.Health <= 0 then
+	local value = character and character:FindFirstChild("HumanoidRootPart")
+	local result = character and character:FindFirstChildOfClass("Humanoid")
+	local child = Knock.PromptPosition(data.Prompt)
+	if not value or not result or not child or result.Health <= 0 then
 		return false, "Character unavailable"
 	end
-	if runtimeValue4.Anchored then
+	if value.Anchored then
 		return false, "Character busy"
 	end
-	local function utilityRoutine()
-		return Knock.Alive(parameter2) and LocalPlayer.Character == character and runtimeValue4.Parent and runtimeValue5.Health > 0
+	local function helperFunction()
+		return Knock.Alive(options) and LocalPlayer.Character == character and value.Parent and result.Health > 0
 	end
-	if not utilityRoutine() then
+	if not helperFunction() then
 		return false, "Canceled"
 	end
-	local runtimeValue7 = Knock.Targets(parameter, runtimeValue4, runtimeValue5)
-	if # runtimeValue7 == 0 then
+	local element = Knock.Targets(data, value, result)
+	if # element == 0 then
 		return false, "No clear ground in front of door"
 	end
 	local text = "Arrival not confirmed"
-	for index, item in ipairs(runtimeValue7) do
+	for index, item in ipairs(element) do
 		if index > 4 then
 			break
 		end
-		if not utilityRoutine() then
+		if not helperFunction() then
 			return false, "Canceled"
 		end
-		Knock.Status(parameter.Door.Name .. " | " .. parameter3 .. " approach " .. index)
+		Knock.Status(data.Door.Name .. " | " .. callback .. " approach " .. index)
 		Knock.LastAttempt = {
-			Door = parameter.Door.Name,
-			Method = parameter3,
+			Door = data.Door.Name,
+			Method = callback,
 			Target = {
 				item.Position.X,
 				item.Position.Y,
@@ -4297,46 +4364,46 @@ function Knock.Travel(parameter, parameter2, parameter3)
 			},
 			Approach = index
 		}
-		if parameter3 == "TP" then
-			local runtimeValue8 = runtimeValue4.CFrame:ToObjectSpace(character:GetPivot())
-			character:PivotTo(item.CFrame * runtimeValue8)
+		if callback == "TP" then
+			local label = value.CFrame:ToObjectSpace(character:GetPivot())
+			character:PivotTo(item.CFrame * label)
 			task.wait(0.4)
-			runtimeValue4.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-			runtimeValue4.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+			value.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+			value.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
 		else
-			local runtimeValue9 = game:GetService("PathfindingService"):CreatePath({
+			local textValue = game:GetService("PathfindingService"):CreatePath({
 				AgentRadius = 2,
 				AgentHeight = 5,
 				AgentCanJump = true,
 				WaypointSpacing = 6
 			})
 			local ok2 = pcall(function()
-				runtimeValue9:ComputeAsync(runtimeValue4.Position, item.Position)
+				textValue:ComputeAsync(value.Position, item.Position)
 			end)
-			if not utilityRoutine() then
+			if not helperFunction() then
 				return false, "Canceled"
 			end
-			if ok2 and runtimeValue9.Status == Enum.PathStatus.Success then
-				Knock.OwnWalk(runtimeValue5)
-				local runtimeValue10 = os.clock() + 40
-				local runtimeValue11 = runtimeValue9:GetWaypoints()
-				for index2, item3 in ipairs(runtimeValue11) do
-					if not utilityRoutine() then
+			if ok2 and textValue.Status == Enum.PathStatus.Success then
+				Knock.OwnWalk(result)
+				local indexValue = os.clock() + 40
+				local cachedValue = textValue:GetWaypoints()
+				for index2, item3 in ipairs(cachedValue) do
+					if not helperFunction() then
 						return false, "Canceled"
 					end
 					if item3.Action == Enum.PathWaypointAction.Jump then
-						runtimeValue5.Jump = true
+						result.Jump = true
 					end
-					runtimeValue5:MoveTo(item3.Position)
-					local num = math.min(runtimeValue10, os.clock() + 5)
-					local runtimeValue12 = index2 == # runtimeValue11 and 1.8 or math.max(3, (runtimeValue5.WalkSpeed or 16) * 0.2)
+					result:MoveTo(item3.Position)
+					local num = math.min(indexValue, os.clock() + 5)
+					local nextValue = index2 == # cachedValue and 1.8 or math.max(3, (result.WalkSpeed or 16) * 0.2)
 					repeat
 						task.wait(0.03)
-					until not utilityRoutine() or Knock.ReachedWaypoint(runtimeValue4, item3.Position, runtimeValue12) or os.clock() >= num
-					if not utilityRoutine() then
+					until not helperFunction() or Knock.ReachedWaypoint(value, item3.Position, nextValue) or os.clock() >= num
+					if not helperFunction() then
 						return false, "Canceled"
 					end
-					if os.clock() >= num and not Knock.ReachedWaypoint(runtimeValue4, item3.Position, runtimeValue12) then
+					if os.clock() >= num and not Knock.ReachedWaypoint(value, item3.Position, nextValue) then
 						text = "Walk blocked"
 						break
 					end
@@ -4346,18 +4413,18 @@ function Knock.Travel(parameter, parameter2, parameter3)
 			end
 			Knock.CancelMove()
 		end
-		if not utilityRoutine() then
+		if not helperFunction() then
 			return false, "Canceled"
 		end
-		if (runtimeValue4.Position - item.Position).Magnitude < 2.5 and (runtimeValue4.Position - runtimeValue6).Magnitude < parameter.Prompt.MaxActivationDistance - 0.2 then
-			if runtimeValue4.Anchored then
+		if (value.Position - item.Position).Magnitude < 2.5 and (value.Position - child).Magnitude < data.Prompt.MaxActivationDistance - 0.2 then
+			if value.Anchored then
 				return false, "Character busy"
 			end
 			task.wait(0.25)
-			if not utilityRoutine() then
+			if not helperFunction() then
 				return false, "Canceled"
 			end
-			if Knock.FocusPrompt(parameter, parameter2) then
+			if Knock.FocusPrompt(data, options) then
 				return true
 			end
 			Knock.ReleaseCamera()
@@ -4366,41 +4433,41 @@ function Knock.Travel(parameter, parameter2, parameter3)
 	end
 	return false, text
 end
-function Knock.OnToast(parameter)
+function Knock.OnToast(data)
 	local pending = Knock.Pending
-	if not pending or type(parameter) ~= "table" or pending.Conflicted then
+	if not pending or type(data) ~= "table" or pending.Conflicted then
 		return
 	end
-	local str, str2 = tostring(parameter.Title or ""), tostring(parameter.ContentText or "")
+	local str, str2 = tostring(data.Title or ""), tostring(data.ContentText or "")
 	local lowered = (str .. " " .. str2):lower()
 	if not (lowered:find("treat", 1, true) or lowered:find("trick", 1, true) or lowered:find("door", 1, true)) then
 		return
 	end
-	local runtimeValue4 = str .. "|" .. str2
-	if pending.Seen[runtimeValue4] then
+	local value = str .. "|" .. str2
+	if pending.Seen[value] then
 		return
 	end
-	pending.Seen[runtimeValue4] = true
-	local runtimeValue5 = Knock.CooldownSeconds(str2)
-	if not runtimeValue5 and lowered:find("cooldown", 1, true) then
-		runtimeValue5 = 1800
+	pending.Seen[value] = true
+	local result = Knock.CooldownSeconds(str2)
+	if not result and lowered:find("cooldown", 1, true) then
+		result = 1800
 	end
-	if runtimeValue5 then
-		pending.Cooldown = runtimeValue5
+	if result then
+		pending.Cooldown = result
 		pending.Done = true
-		Knock.SetCooldown(pending.Door, runtimeValue5)
+		Knock.SetCooldown(pending.Door, result)
 		return
 	end
-	local runtimeValue6 = Reports.ParseRewards(str2)
-	for index, item in pairs(runtimeValue6) do
+	local child = Reports.ParseRewards(str2)
+	for index, item in pairs(child) do
 		pending.Rewards[index] = (pending.Rewards[index] or 0) + item
 	end
-	if next(runtimeValue6) then
+	if next(child) then
 		pending.Outcome = "Reward"
 		pending.Done = true
 		Knock.SetCooldown(pending.Door, 1800)
 	end
-	if not next(runtimeValue6) and str2 ~= "" then
+	if not next(child) and str2 ~= "" then
 		pending.Messages[# pending.Messages + 1] = str2
 		if lowered:find("nothing", 1, true) or lowered:find("no reward", 1, true) or lowered:find("empty", 1, true) then
 			pending.Outcome = "Empty"
@@ -4413,23 +4480,23 @@ function Knock.OnToast(parameter)
 		end
 	end
 end
-function Knock.OnCamera(parameter, parameter2)
+function Knock.OnCamera(data, options)
 	local pending = Knock.Pending
-	if not pending or typeof(parameter) ~= "Instance" then
+	if not pending or typeof(data) ~= "Instance" then
 		return
 	end
-	if parameter2 == "lock" and Knock.SavedCamera then
+	if options == "lock" and Knock.SavedCamera then
 		Knock.SavedCamera.Owned = false
 	end
-	if not parameter:IsDescendantOf(pending.Door) then
+	if not data:IsDescendantOf(pending.Door) then
 		pending.Conflicted = true
 		return
 	end
-	if parameter2 == "lock" then
+	if options == "lock" then
 		pending.Started = true
 		pending.Locked = true
 	end
-	if parameter2 == "unlock" then
+	if options == "unlock" then
 		pending.Locked = false
 		pending.ReleasedAt = os.clock()
 	end
@@ -4438,64 +4505,64 @@ function Knock.Bind()
 	if not Knock.PromptSignalsBound then
 		pcall(function()
 			local proximityPromptService = game:GetService("ProximityPromptService")
-			trackConnection(Knock.Connections, proximityPromptService.PromptShown:Connect(function(parameter)
-				Knock.VisiblePrompts[parameter] = true
+			trackConnection(Knock.Connections, proximityPromptService.PromptShown:Connect(function(data)
+				Knock.VisiblePrompts[data] = true
 			end))
-			trackConnection(Knock.Connections, proximityPromptService.PromptHidden:Connect(function(parameter)
-				Knock.VisiblePrompts[parameter] = false
+			trackConnection(Knock.Connections, proximityPromptService.PromptHidden:Connect(function(data)
+				Knock.VisiblePrompts[data] = false
 			end))
 			Knock.PromptSignalsBound = true
 		end)
 	end
 	local toasts = ReplicatedStorage:FindFirstChild("Toasts")
-	local runtimeValue4 = toasts and toasts:FindFirstChild("Assets")
-	local runtimeValue5 = runtimeValue4 and runtimeValue4:FindFirstChild("Remotes")
+	local value = toasts and toasts:FindFirstChild("Assets")
+	local result = value and value:FindFirstChild("Remotes")
 	local eventStuff = ReplicatedStorage:FindFirstChild("EventStuff")
-	local function utilityRoutine(parameter, parameter2)
-		if parameter and parameter:IsA("RemoteEvent") and not Knock.Bound[parameter] then
-			Knock.Bound[parameter] = true
-			trackConnection(Knock.Connections, parameter.OnClientEvent:Connect(parameter2))
+	local function helperFunction(data, options)
+		if data and data:IsA("RemoteEvent") and not Knock.Bound[data] then
+			Knock.Bound[data] = true
+			trackConnection(Knock.Connections, data.OnClientEvent:Connect(options))
 		end
 	end
-	utilityRoutine(runtimeValue5 and runtimeValue5:FindFirstChild("Display"), Knock.OnToast)
-	utilityRoutine(eventStuff and eventStuff:FindFirstChild("TweenCamera"), Knock.OnCamera)
+	helperFunction(result and result:FindFirstChild("Display"), Knock.OnToast)
+	helperFunction(eventStuff and eventStuff:FindFirstChild("TweenCamera"), Knock.OnCamera)
 end
-function Knock.Trigger(parameter, parameter2, parameter3, parameter4)
-	if not Knock.Alive(parameter2) or not Knock.PromptReady(parameter) then
+function Knock.Trigger(data, options, callback, context)
+	if not Knock.Alive(options) or not Knock.PromptReady(data) then
 		return false, "Door prompt not ready"
 	end
-	local num = math.max(0, tonumber(parameter.HoldDuration) or 0)
-	Knock.Status(parameter3.Door.Name .. " | Holding Knock " .. string.format("%.1fs", num))
-	parameter3.Attempts = (parameter3.Attempts or 0) + 1
+	local num = math.max(0, tonumber(data.HoldDuration) or 0)
+	Knock.Status(callback.Door.Name .. " | Holding Knock " .. string.format("%.1fs", num))
+	callback.Attempts = (callback.Attempts or 0) + 1
 	local now = os.clock()
-	local runtimeValue4 = not parameter4 and type(parameter.InputHoldBegin) == "function" and type(parameter.InputHoldEnd) == "function"
+	local value = not context and type(data.InputHoldBegin) == "function" and type(data.InputHoldEnd) == "function"
 	local ok2, result2 = pcall(function()
-		if runtimeValue4 then
-			parameter:InputHoldBegin()
+		if value then
+			data:InputHoldBegin()
 		elseif type(fireproximityprompt) == "function" then
-			fireproximityprompt(parameter, num)
+			fireproximityprompt(data, num)
 		else
 			error("No supported prompt input")
 		end
 		repeat
 			task.wait(0.05)
-		until not Knock.Alive(parameter2) or parameter3.Started or parameter3.Done or os.clock() - now >= num + 0.2
+		until not Knock.Alive(options) or callback.Started or callback.Done or os.clock() - now >= num + 0.2
 	end)
-	if runtimeValue4 then
+	if value then
 		pcall(function()
-			parameter:InputHoldEnd()
+			data:InputHoldEnd()
 		end)
 	end
 	if Knock.LastAttempt then
-		Knock.LastAttempt.Input = runtimeValue4 and "Hold" or "fireproximityprompt"
+		Knock.LastAttempt.Input = value and "Hold" or "fireproximityprompt"
 		Knock.LastAttempt.HoldDuration = num
-		Knock.LastAttempt.Attempts = parameter3.Attempts
+		Knock.LastAttempt.Attempts = callback.Attempts
 	end
 	return ok2, result2
 end
-function Knock.TryDoor(parameter, parameter2, parameter3)
-	local door, prompt = parameter.Door, parameter.Prompt
-	if not Knock.Alive(parameter2) or not Knock.Ready(door) then
+function Knock.TryDoor(data, options, callback)
+	local door, prompt = data.Door, data.Prompt
+	if not Knock.Alive(options) or not Knock.Ready(door) then
 		return nil
 	end
 	if door.Parent ~= Workspace or not prompt:IsDescendantOf(door) then
@@ -4510,7 +4577,7 @@ function Knock.TryDoor(parameter, parameter2, parameter3)
 		}
 	end
 	Knock.Bind()
-	local value, value1 = Knock.Travel(parameter, parameter2, parameter3)
+	local value, value1 = Knock.Travel(data, options, callback)
 	Knock.CancelMove()
 	if not value then
 		Knock.RetryAt[door.Name] = os.clock() + 120
@@ -4519,22 +4586,22 @@ function Knock.TryDoor(parameter, parameter2, parameter3)
 			Message = value1
 		}
 	end
-	if not Knock.Alive(parameter2) then
+	if not Knock.Alive(options) then
 		return nil
 	end
 	Knock.Bind()
-	local dataTable = {
+	local records = {
 		Door = door,
 		Rewards = {},
 		Messages = {},
 		Seen = {}
 	}
-	Knock.Pending = dataTable
-	local value2, value12 = Knock.Trigger(prompt, parameter2, dataTable, false)
-	local stateFlag = false
-	if not value2 and Knock.Alive(parameter2) and not dataTable.Started and not dataTable.Done and type(fireproximityprompt) == "function" then
-		stateFlag = true
-		value2, value12 = Knock.Trigger(prompt, parameter2, dataTable, true)
+	Knock.Pending = records
+	local value2, value12 = Knock.Trigger(prompt, options, records, false)
+	local isActive = false
+	if not value2 and Knock.Alive(options) and not records.Started and not records.Done and type(fireproximityprompt) == "function" then
+		isActive = true
+		value2, value12 = Knock.Trigger(prompt, options, records, true)
 	end
 	if not value2 then
 		Knock.Pending = nil
@@ -4545,31 +4612,31 @@ function Knock.TryDoor(parameter, parameter2, parameter3)
 		}
 	end
 	local now = os.clock()
-	local runtimeValue4 = now + 40
+	local value = now + 40
 	Knock.Status(door.Name .. " | Waiting for door response")
-	while Knock.Alive(parameter2) and os.clock() < runtimeValue4 do
-		if dataTable.Cooldown then
+	while Knock.Alive(options) and os.clock() < value do
+		if records.Cooldown then
 			break
 		end
-		if dataTable.Done and not dataTable.Locked then
+		if records.Done and not records.Locked then
 			task.wait(0.5)
 			break
 		end
-		if dataTable.ReleasedAt and os.clock() - dataTable.ReleasedAt >= 3 then
+		if records.ReleasedAt and os.clock() - records.ReleasedAt >= 3 then
 			break
 		end
-		if not dataTable.Started and not dataTable.Done and os.clock() - now >= 6 then
-			if not stateFlag and type(fireproximityprompt) == "function" then
-				stateFlag = true
-				local runtimeValue5 = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-				local runtimeValue6 = Knock.PromptPosition(prompt)
-				if not runtimeValue5 or runtimeValue5.Anchored or not runtimeValue6 or (runtimeValue5.Position - runtimeValue6).Magnitude >= prompt.MaxActivationDistance then
+		if not records.Started and not records.Done and os.clock() - now >= 6 then
+			if not isActive and type(fireproximityprompt) == "function" then
+				isActive = true
+				local result = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+				local child = Knock.PromptPosition(prompt)
+				if not result or result.Anchored or not child or (result.Position - child).Magnitude >= prompt.MaxActivationDistance then
 					break
 				end
-				if not Knock.FocusPrompt(parameter, parameter2) then
+				if not Knock.FocusPrompt(data, options) then
 					break
 				end
-				Knock.Trigger(prompt, parameter2, dataTable, true)
+				Knock.Trigger(prompt, options, records, true)
 				now = os.clock()
 				Knock.Status(door.Name .. " | Waiting for door response")
 			else
@@ -4579,23 +4646,23 @@ function Knock.TryDoor(parameter, parameter2, parameter3)
 		task.wait(0.1)
 	end
 	Knock.Pending = nil
-	if dataTable.Conflicted then
+	if records.Conflicted then
 		Knock.RetryAt[door.Name] = os.clock() + 120
 		return {
 			Status = "Unknown"
 		}
 	end
-	if dataTable.Cooldown then
+	if records.Cooldown then
 		return {
 			Status = "Cooldown",
-			Seconds = dataTable.Cooldown
+			Seconds = records.Cooldown
 		}
 	end
-	if dataTable.Outcome then
+	if records.Outcome then
 		return {
-			Status = dataTable.Outcome,
-			Rewards = dataTable.Rewards,
-			Messages = dataTable.Messages
+			Status = records.Outcome,
+			Rewards = records.Rewards,
+			Messages = records.Messages
 		}
 	end
 	Knock.RetryAt[door.Name] = os.clock() + 300
@@ -4607,16 +4674,16 @@ function Knock.TryDoor(parameter, parameter2, parameter3)
 		Message = "No reward confirmation"
 	}
 end
-function Knock.Try(parameter, parameter2, parameter3)
+function Knock.Try(data, options, callback)
 	local ok2, result2 = xpcall(function()
-		return Knock.TryDoor(parameter, parameter2, parameter3)
-	end, function(parameter4)
-		return tostring(parameter4)
+		return Knock.TryDoor(data, options, callback)
+	end, function(context)
+		return tostring(context)
 	end)
 	Knock.ReleaseCamera()
 	if not ok2 then
 		Knock.Pending = nil
-		Knock.RetryAt[parameter.Door.Name] = os.clock() + 120
+		Knock.RetryAt[data.Door.Name] = os.clock() + 120
 		Knock.CancelMove()
 		return {
 			Status = "Failed",
@@ -4625,24 +4692,24 @@ function Knock.Try(parameter, parameter2, parameter3)
 	end
 	return result2
 end
-function Knock.BuildReport(parameter)
-	local dataTable = {
-		string.format("\240\159\143\160 Checked: %d | Reward: %d | Empty: %d", parameter.Checked, parameter.Reward, parameter.Empty),
-		string.format("\226\143\179 Cooldown: %d | Unconfirmed: %d | Failed: %d", parameter.Cooldown, parameter.Unknown, parameter.Failed)
+function Knock.BuildReport(data)
+	local records = {
+		string.format("\240\159\143\160 Checked: %d | Reward: %d | Empty: %d", data.Checked, data.Reward, data.Empty),
+		string.format("\226\143\179 Cooldown: %d | Unconfirmed: %d | Failed: %d", data.Cooldown, data.Unknown, data.Failed)
 	}
-	local dataTable2 = {
+	local copiedData = {
 		{
 			name = "Rewards",
-			value = Reports.Lines(parameter.Rewards),
+			value = Reports.Lines(data.Rewards),
 			inline = false
 		}
 	}
-	if # parameter.Messages > 0 then
-		local joined = table.concat(parameter.Messages, "\n")
+	if # data.Messages > 0 then
+		local joined = table.concat(data.Messages, "\n")
 		if # joined > 950 then
 			joined = joined:sub(1, 900) .. "\n\226\128\166 More messages stored in the local debug report."
 		end
-		dataTable2[# dataTable2 + 1] = {
+		copiedData[# copiedData + 1] = {
 			name = "Other rewards / messages",
 			value = joined,
 			inline = false
@@ -4650,25 +4717,25 @@ function Knock.BuildReport(parameter)
 	end
 	return {
 		title = "Knock Door Report",
-		description = "\240\159\145\164 ||" .. Reports.Escape(LocalPlayer.Name) .. "|| \194\183 " .. Reports.Escape(parameter.Method) .. "\n" .. table.concat(dataTable, "\n"),
+		description = "\240\159\145\164 ||" .. Reports.Escape(LocalPlayer.Name) .. "|| \194\183 " .. Reports.Escape(data.Method) .. "\n" .. table.concat(records, "\n"),
 		color = 16753920,
-		fields = dataTable2,
+		fields = copiedData,
 		footer = {
 			text = "Made By Kero"
 		},
 		timestamp = DateTime.now():ToIsoDate()
 	}
 end
-function Knock.Report(parameter)
-	Knock.LastRound = parameter
-	if not State.KnockWebhookEnabled or parameter.Checked == 0 then
+function Knock.Report(data)
+	Knock.LastRound = data
+	if not State.KnockWebhookEnabled or data.Checked == 0 then
 		return
 	end
-	local value, value1 = Reports.Post(State.WebhookURL, Knock.BuildReport(parameter))
+	local value, value1 = Reports.Post(State.WebhookURL, Knock.BuildReport(data))
 	Knock.LastWebhookResult = value and "Sent" or value1
 end
-function Knock.Sweep(parameter, parameter2)
-	local dataTable = {
+function Knock.Sweep(data, options)
+	local records = {
 		Checked = 0,
 		Reward = 0,
 		Empty = 0,
@@ -4679,51 +4746,51 @@ function Knock.Sweep(parameter, parameter2)
 		Messages = {},
 		Method = State.KnockMethod
 	}
-	while Knock.Alive(parameter) and # parameter2 > 0 do
+	while Knock.Alive(data) and # options > 0 do
 		local character = LocalPlayer.Character
-		local runtimeValue4 = character and character:FindFirstChild("HumanoidRootPart")
-		if not runtimeValue4 then
+		local value = character and character:FindFirstChild("HumanoidRootPart")
+		if not value then
 			break
 		end
-		table.sort(parameter2, function(parameter3, parameter4)
-			local runtimeValue5, runtimeValue6 = Knock.PromptPosition(parameter3.Prompt), Knock.PromptPosition(parameter4.Prompt)
-			return (runtimeValue5 and (runtimeValue4.Position - runtimeValue5).Magnitude or math.huge) < (runtimeValue6 and (runtimeValue4.Position - runtimeValue6).Magnitude or math.huge)
+		table.sort(options, function(callback, context)
+			local result, child = Knock.PromptPosition(callback.Prompt), Knock.PromptPosition(context.Prompt)
+			return (result and (value.Position - result).Magnitude or math.huge) < (child and (value.Position - child).Magnitude or math.huge)
 		end)
-		local runtimeValue7 = table.remove(parameter2, 1)
-		if Knock.Ready(runtimeValue7.Door) then
-			Knock.Status(runtimeValue7.Door.Name .. " | " .. dataTable.Method)
-			local runtimeValue8 = Knock.Try(runtimeValue7, parameter, dataTable.Method)
-			if runtimeValue8 then
-				dataTable.Checked = dataTable.Checked + 1
-				local status = runtimeValue8.Status
+		local element = table.remove(options, 1)
+		if Knock.Ready(element.Door) then
+			Knock.Status(element.Door.Name .. " | " .. records.Method)
+			local label = Knock.Try(element, data, records.Method)
+			if label then
+				records.Checked = records.Checked + 1
+				local status = label.Status
 				if status == "Reward" or status == "Other" then
-					dataTable.Reward = dataTable.Reward + 1
+					records.Reward = records.Reward + 1
 				elseif status == "Empty" then
-					dataTable.Empty = dataTable.Empty + 1
+					records.Empty = records.Empty + 1
 				elseif status == "Cooldown" then
-					dataTable.Cooldown = dataTable.Cooldown + 1
+					records.Cooldown = records.Cooldown + 1
 				elseif status == "Unknown" then
-					dataTable.Unknown = dataTable.Unknown + 1
+					records.Unknown = records.Unknown + 1
 				else
-					dataTable.Failed = dataTable.Failed + 1
+					records.Failed = records.Failed + 1
 				end
-				for index, item in pairs(runtimeValue8.Rewards or {}) do
-					dataTable.Rewards[index] = (dataTable.Rewards[index] or 0) + item
+				for index, item in pairs(label.Rewards or {}) do
+					records.Rewards[index] = (records.Rewards[index] or 0) + item
 				end
-				for _, item3 in ipairs(runtimeValue8.Messages or {}) do
-					dataTable.Messages[# dataTable.Messages + 1] = Reports.Escape(runtimeValue7.Door.Name .. ": " .. item3)
+				for _, item3 in ipairs(label.Messages or {}) do
+					records.Messages[# records.Messages + 1] = Reports.Escape(element.Door.Name .. ": " .. item3)
 				end
 			end
-			local runtimeValue9 = os.clock() + 1
+			local textValue = os.clock() + 1
 			repeat
 				task.wait(0.1)
-			until not Knock.Alive(parameter) or os.clock() >= runtimeValue9
+			until not Knock.Alive(data) or os.clock() >= textValue
 		end
 	end
-	Knock.Report(dataTable)
+	Knock.Report(records)
 end
-function Hub.SetAutoKnock(parameter)
-	State.AutoKnockDoor = parameter == true
+function Hub.SetAutoKnock(data)
+	State.AutoKnockDoor = data == true
 	Knock.Session = Knock.Session + 1
 	Knock.CancelMove()
 	Knock.ReleaseCamera()
@@ -4740,25 +4807,25 @@ function Hub.SetAutoKnock(parameter)
 		local ok2, result2 = xpcall(function()
 			while Knock.Alive(session) do
 				Knock.Bind()
-				local runtimeValue4 = Knock.Doors()
-				local dataTable = {}
-				for _, item in ipairs(runtimeValue4) do
+				local value = Knock.Doors()
+				local records = {}
+				for _, item in ipairs(value) do
 					if Knock.Ready(item.Door) then
-						dataTable[# dataTable + 1] = item
+						records[# records + 1] = item
 					end
 				end
-				if # dataTable > 0 then
-					Knock.Sweep(session, dataTable)
+				if # records > 0 then
+					Knock.Sweep(session, records)
 				else
-					Knock.Status(# runtimeValue4 == 0 and "Waiting for event houses" or "Waiting for available doors")
+					Knock.Status(# value == 0 and "Waiting for event houses" or "Waiting for available doors")
 				end
-				local runtimeValue5 = os.clock() + 5
+				local result = os.clock() + 5
 				repeat
 					task.wait(0.2)
-				until not Knock.Alive(session) or os.clock() >= runtimeValue5
+				until not Knock.Alive(session) or os.clock() >= result
 			end
-		end, function(parameter2)
-			return tostring(parameter2)
+		end, function(options)
+			return tostring(options)
 		end)
 		Knock.Pending = nil
 		Knock.CancelMove()
@@ -4820,41 +4887,41 @@ pcall(function()
 	Window:SetTogleKey(Enum.KeyCode.RightShift)
 end)
 -- Window setup and interface construction
-local function notifyUser(parameter, parameter2)
+local function notifyUser(data, options)
 	pcall(function()
 		WindUI:Notify({
-			Title = parameter,
-			Content = parameter2,
+			Title = data,
+			Content = options,
 			Duration = 4,
 			Icon = "bell"
 		})
 	end)
 end
-local function createParagraphAdapter(parameter)
-	local dataTable = {}
-	function dataTable:SetTitle(parameter2)
+local function createParagraphAdapter(data)
+	local records = {}
+	function records:SetTitle(options)
 		pcall(function()
-			if parameter.SetTitle then
-				parameter:SetTitle(parameter2)
+			if data.SetTitle then
+				data:SetTitle(options)
 			else
-				parameter:Set({
-					Title = parameter2
+				data:Set({
+					Title = options
 				})
 			end
 		end)
 	end
-	function dataTable:SetDesc(parameter2)
+	function records:SetDesc(options)
 		pcall(function()
-			if parameter.SetDesc then
-				parameter:SetDesc(parameter2)
+			if data.SetDesc then
+				data:SetDesc(options)
 			else
-				parameter:Set({
-					Desc = parameter2
+				data:Set({
+					Desc = options
 				})
 			end
 		end)
 	end
-	return dataTable
+	return records
 end
 local function loadConfig()
 	if not hasFileApi or not isfile(CONFIG_PATH) then
@@ -4920,13 +4987,13 @@ State.PlaybackMode = table.find({
 	"Money"
 }, savedConfig.PlaybackMode) and savedConfig.PlaybackMode or "Hybrid"
 State.ProfileName = sanitizeProfileName(savedConfig.SelectedProfile or "")
-local stateFlag5 = false
+local isVisible = false
 Knock.LoadCooldowns()
 local function saveConfig()
 	if not hasFileApi then
 		return
 	end
-	local dataTable = {
+	local records = {
 		BlackScreen = State.BlackScreen,
 		HideUser = State.HideUser,
 		HideName = State.HideName,
@@ -4966,16 +5033,16 @@ local function saveConfig()
 		NewProfileName = savedConfig.NewProfileName or ""
 	}
 	pcall(function()
-		writefile(CONFIG_PATH, HttpService:JSONEncode(dataTable))
+		writefile(CONFIG_PATH, HttpService:JSONEncode(records))
 	end)
 end
 local function queueConfigSave()
-	if stateFlag5 then
+	if isVisible then
 		return
 	end
-	stateFlag5 = true
+	isVisible = true
 	task.delay(0.25, function()
-		stateFlag5 = false
+		isVisible = false
 		saveConfig()
 	end)
 end
@@ -5041,25 +5108,25 @@ do
 		Desc = text2,
 		Icon = "external-link",
 		Callback = function()
-			local runtimeValue4
+			local value
 			if type(openurl) == "function" then
 				local ok2, result2 = pcall(openurl, text2)
 				if ok2 and result2 ~= false then
-					runtimeValue4 = "Discord link opened."
+					value = "Discord link opened."
 				end
 			end
-			if not runtimeValue4 then
+			if not value then
 				for _, item in ipairs({
 					"setclipboard",
 					"toclipboard",
 					"set_clipboard"
 				}) do
-					local runtimeValue5 = type(getgenv) == "function" and getgenv() or _G
-					local runtimeValue6 = runtimeValue5[item]
-					if type(runtimeValue6) == "function" then
-						local ok3, result3 = pcall(runtimeValue6, text2)
+					local result = type(getgenv) == "function" and getgenv() or _G
+					local child = result[item]
+					if type(child) == "function" then
+						local ok3, result3 = pcall(child, text2)
 						if ok3 and result3 ~= false then
-							runtimeValue4 = "Copied! Paste the link into your browser or Discord."
+							value = "Copied! Paste the link into your browser or Discord."
 							break
 						end
 					end
@@ -5068,7 +5135,7 @@ do
 			pcall(function()
 				WindUI:Notify({
 					Title = "Discord",
-					Content = runtimeValue4 or "Open this link: " .. text2,
+					Content = value or "Open this link: " .. text2,
 					Duration = 5,
 					Icon = "message-circle"
 				})
@@ -5081,96 +5148,96 @@ Hub.BlackScreenPersistence = {
 	Get = function()
 		return State.BlackScreen == true
 	end,
-	Set = function(parameter)
-		State.BlackScreen = parameter == true
+	Set = function(data)
+		State.BlackScreen = data == true
 		saveConfig()
 	end
 }
 do
-	local runtimeValue22 = type(getgenv) == "function" and getgenv() or _G
-	local runtimeValue23
+	local actionValue = type(getgenv) == "function" and getgenv() or _G
+	local blackScreenController
 	local blackScreenPersistence = Hub.BlackScreenPersistence
-	local runtimeValue24 = blackScreenPersistence and blackScreenPersistence.Get() == true or false
-	local function syncBlackScreenPreference(parameter)
-		if blackScreenPersistence and not runtimeValue23.Cleaning and blackScreenPersistence.Get() ~= parameter then
-			blackScreenPersistence.Set(parameter)
+	local isBlackScreenEnabled = blackScreenPersistence and blackScreenPersistence.Get() == true or false
+	local function syncBlackScreenPreference(data)
+		if blackScreenPersistence and not blackScreenController.Cleaning and blackScreenPersistence.Get() ~= data then
+			blackScreenPersistence.Set(data)
 		end
 	end
-	local runtimeValue25 = runtimeValue22.__KeroBlackScreen
-	if runtimeValue25 and type(runtimeValue25.Destroy) == "function" and runtimeValue25.Destroy() == false then
+	local blackScreenState = actionValue.__KeroBlackScreen
+	if blackScreenState and type(blackScreenState.Destroy) == "function" and blackScreenState.Destroy() == false then
 		return
 	end
-	runtimeValue23 = {
+	blackScreenController = {
 		Alive = true,
 		Enabled = false,
 		Connections = {}
 	}
-	runtimeValue22.__KeroBlackScreen = runtimeValue23
-	Hub.BlackScreenController = runtimeValue23
-	local runtimeValue26, runtimeValue27
-	local runtimeValue28
-	local function notifyBlackScreen(parameter)
+	actionValue.__KeroBlackScreen = blackScreenController
+	Hub.BlackScreenController = blackScreenController
+	local blackScreenConnection, blackScreenChangedConnection
+	local blackScreenGui
+	local function notifyBlackScreen(data)
 		pcall(function()
 			WindUI:Notify({
 				Title = "Black Screen",
-				Content = parameter,
+				Content = data,
 				Duration = 5
 			})
 		end)
 	end
-	local function setBlackScreenToggle(parameter)
-		if not runtimeValue26 or runtimeValue27 then
+	local function setBlackScreenToggle(data)
+		if not blackScreenConnection or blackScreenChangedConnection then
 			return
 		end
-		runtimeValue27 = true
+		blackScreenChangedConnection = true
 		pcall(function()
-			runtimeValue26:Set(parameter)
+			blackScreenConnection:Set(data)
 		end)
-		runtimeValue27 = false
+		blackScreenChangedConnection = false
 	end
 	local function cleanupBlackScreenResources()
-		for _, item in ipairs(runtimeValue23.Connections) do
+		for _, item in ipairs(blackScreenController.Connections) do
 			pcall(item.Disconnect, item)
 		end
-		runtimeValue23.Connections = {}
-		local gui = runtimeValue23.Gui
-		runtimeValue23.Gui = nil
+		blackScreenController.Connections = {}
+		local gui = blackScreenController.Gui
+		blackScreenController.Gui = nil
 		if gui then
 			pcall(gui.Destroy, gui)
 		end
 	end
-	function runtimeValue23.Set(parameter)
-		parameter = parameter == true
-		if parameter and not runtimeValue23.Alive then
+	function blackScreenController.Set(data)
+		data = data == true
+		if data and not blackScreenController.Alive then
 			return false
 		end
-		if not parameter then
-			if runtimeValue23.RenderDisabled then
-				local ok2 = pcall(runtimeValue28.Set3dRenderingEnabled, runtimeValue28, true)
+		if not data then
+			if blackScreenController.RenderDisabled then
+				local ok2 = pcall(blackScreenGui.Set3dRenderingEnabled, blackScreenGui, true)
 				if not ok2 then
 					notifyBlackScreen("Could not restore 3D rendering. Press Disable Black Screen to retry.")
 					return false
 				end
-				runtimeValue23.RenderDisabled = nil
+				blackScreenController.RenderDisabled = nil
 			end
-			runtimeValue23.Enabled = false
+			blackScreenController.Enabled = false
 			syncBlackScreenPreference(false)
 			cleanupBlackScreenResources()
 			setBlackScreenToggle(false)
 			return true
 		end
-		if runtimeValue23.Enabled and runtimeValue23.Gui and runtimeValue23.Gui.Parent then
+		if blackScreenController.Enabled and blackScreenController.Gui and blackScreenController.Gui.Parent then
 			return true
 		end
-		local runtimeValue4
+		local value
 		local ok5, result4 = pcall(function()
-			runtimeValue4 = Instance.new("ScreenGui")
-			runtimeValue4.Name = "KeroBlackScreen_skibidi"
-			runtimeValue4.Enabled = false
-			runtimeValue4.IgnoreGuiInset = true
-			runtimeValue4.ResetOnSpawn = false
-			runtimeValue4.DisplayOrder = 2147483647
-			runtimeValue4.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+			value = Instance.new("ScreenGui")
+			value.Name = "KeroBlackScreen_skibidi"
+			value.Enabled = false
+			value.IgnoreGuiInset = true
+			value.ResetOnSpawn = false
+			value.DisplayOrder = 2147483647
+			value.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 			local frame = Instance.new("Frame")
 			frame.Name = "Background"
 			frame.Size = UDim2.fromScale(1, 1)
@@ -5178,7 +5245,7 @@ do
 			frame.BorderSizePixel = 0
 			frame.Active = true
 			frame.ZIndex = 1
-			frame.Parent = runtimeValue4
+			frame.Parent = value
 			local textButton = Instance.new("TextButton")
 			textButton.Name = "DisableBlackScreen"
 			textButton.AnchorPoint = Vector2.new(.5, .5)
@@ -5195,93 +5262,93 @@ do
 			local uICorner = Instance.new("UICorner")
 			uICorner.CornerRadius = UDim.new(0, 10)
 			uICorner.Parent = textButton
-			local dataTable = {}
+			local records = {}
 			if type(gethui) == "function" then
 				local ok3, result2 = pcall(gethui)
 				if ok3 and result2 then
-					dataTable[# dataTable + 1] = result2
+					records[# records + 1] = result2
 				end
 			end
 			local ok4, result3 = pcall(game.GetService, game, "CoreGui")
 			if ok4 and result3 then
-				dataTable[# dataTable + 1] = result3
+				records[# records + 1] = result3
 			end
 			local localPlayer = game:GetService("Players").LocalPlayer
-			local runtimeValue5 = localPlayer and localPlayer:FindFirstChildOfClass("PlayerGui")
-			if runtimeValue5 then
-				dataTable[# dataTable + 1] = runtimeValue5
+			local result = localPlayer and localPlayer:FindFirstChildOfClass("PlayerGui")
+			if result then
+				records[# records + 1] = result
 			end
-			local stateFlag = false
-			for _, item in ipairs(dataTable) do
+			local isActive = false
+			for _, item in ipairs(records) do
 				if pcall(function()
-					runtimeValue4.Parent = item
-				end) and runtimeValue4.Parent == item then
-					stateFlag = true
+					value.Parent = item
+				end) and value.Parent == item then
+					isActive = true
 					break
 				end
 			end
-			assert(stateFlag, "Overlay unavailable on this executor")
-			runtimeValue23.Gui = runtimeValue4
-			runtimeValue23.Connections[# runtimeValue23.Connections + 1] = textButton.Activated:Connect(function()
-				runtimeValue23.Set(false)
+			assert(isActive, "Overlay unavailable on this executor")
+			blackScreenController.Gui = value
+			blackScreenController.Connections[# blackScreenController.Connections + 1] = textButton.Activated:Connect(function()
+				blackScreenController.Set(false)
 			end)
-			if runtimeValue4.Destroying then
-				runtimeValue23.Connections[# runtimeValue23.Connections + 1] = runtimeValue4.Destroying:Connect(function()
-					runtimeValue23.Gui = nil
-					runtimeValue23.Set(false)
+			if value.Destroying then
+				blackScreenController.Connections[# blackScreenController.Connections + 1] = value.Destroying:Connect(function()
+					blackScreenController.Gui = nil
+					blackScreenController.Set(false)
 				end)
 			end
-			runtimeValue4.Enabled = true
+			value.Enabled = true
 		end)
 		if not ok5 then
-			if runtimeValue4 then
-				pcall(runtimeValue4.Destroy, runtimeValue4)
+			if value then
+				pcall(value.Destroy, value)
 			end
 			cleanupBlackScreenResources()
-			runtimeValue23.Enabled = false
+			blackScreenController.Enabled = false
 			setBlackScreenToggle(false)
 			notifyBlackScreen(tostring(result4))
 			return false
 		end
 		local ok6 = pcall(function()
-			runtimeValue28 = game:GetService("RunService")
-			runtimeValue28:Set3dRenderingEnabled(false)
+			blackScreenGui = game:GetService("RunService")
+			blackScreenGui:Set3dRenderingEnabled(false)
 		end)
-		runtimeValue23.RenderDisabled = ok6 or nil
-		runtimeValue23.Enabled = true
+		blackScreenController.RenderDisabled = ok6 or nil
+		blackScreenController.Enabled = true
 		syncBlackScreenPreference(true)
 		if not ok6 then
 			notifyBlackScreen("Black overlay enabled; this executor cannot disable 3D rendering.")
 		end
 		return true
 	end
-	function runtimeValue23.Destroy()
-		runtimeValue23.Cleaning = true
-		if not runtimeValue23.Set(false) then
-			runtimeValue23.Cleaning = false
+	function blackScreenController.Destroy()
+		blackScreenController.Cleaning = true
+		if not blackScreenController.Set(false) then
+			blackScreenController.Cleaning = false
 			return false
 		end
-		runtimeValue23.Alive = false
-		if runtimeValue22.__KeroBlackScreen == runtimeValue23 then
-			runtimeValue22.__KeroBlackScreen = nil
+		blackScreenController.Alive = false
+		if actionValue.__KeroBlackScreen == blackScreenController then
+			actionValue.__KeroBlackScreen = nil
 		end
 		return true
 	end
 	miscTab:Section({
 		Title = "Display"
 	})
-	runtimeValue26 = miscTab:Toggle({
+	blackScreenConnection = miscTab:Toggle({
 		Title = "Black Screen",
 		Desc = "Black overlay with a visible Disable button. Turns off 3D rendering when supported.",
-		Value = runtimeValue24,
-		Callback = function(parameter)
-			if not runtimeValue27 then
-				runtimeValue23.Set(parameter)
+		Value = isBlackScreenEnabled,
+		Callback = function(data)
+			if not blackScreenChangedConnection then
+				blackScreenController.Set(data)
 			end
 		end
 	})
-	if runtimeValue24 then
-		runtimeValue23.Set(true)
+	if isBlackScreenEnabled then
+		blackScreenController.Set(true)
 	end
 end
 lobbyTab:Section({
@@ -5290,11 +5357,11 @@ lobbyTab:Section({
 if not chaptersByMode[State.LobbyMode] and State.LobbyMode ~= "All" then
 	State.LobbyMode = "Story"
 end
-local runtimeValue29 = getChapters(State.LobbyMode)
-if not table.find(runtimeValue29, State.LobbyChapter) then
-	State.LobbyChapter = runtimeValue29[1] or "Chapter 1"
+local chapterList = getChapters(State.LobbyMode)
+if not table.find(chapterList, State.LobbyChapter) then
+	State.LobbyChapter = chapterList[1] or "Chapter 1"
 end
-local runtimeValue30
+local selectedChapter
 lobbyTab:Dropdown({
 	Title = "Mode",
 	Values = {
@@ -5310,31 +5377,31 @@ lobbyTab:Dropdown({
 	},
 	Value = State.LobbyMode,
 	Multi = false,
-	Callback = function(parameter)
-		State.LobbyMode = parameter
-		local runtimeValue4 = getChapters(parameter)
-		if not table.find(runtimeValue4, State.LobbyChapter) then
-			State.LobbyChapter = runtimeValue4[1] or ""
+	Callback = function(data)
+		State.LobbyMode = data
+		local value = getChapters(data)
+		if not table.find(value, State.LobbyChapter) then
+			State.LobbyChapter = value[1] or ""
 		end
-		if runtimeValue30 then
+		if selectedChapter then
 			pcall(function()
-				runtimeValue30:Refresh(runtimeValue4)
+				selectedChapter:Refresh(value)
 			end)
 			pcall(function()
-				runtimeValue30:Select(State.LobbyChapter)
+				selectedChapter:Select(State.LobbyChapter)
 			end)
 		end
 		State.JoinRequested = false
 		queueConfigSave()
 	end
 })
-runtimeValue30 = lobbyTab:Dropdown({
+selectedChapter = lobbyTab:Dropdown({
 	Title = "Map",
-	Values = runtimeValue29,
+	Values = chapterList,
 	Value = State.LobbyChapter,
 	Multi = false,
-	Callback = function(parameter)
-		State.LobbyChapter = parameter
+	Callback = function(data)
+		State.LobbyChapter = data
 		State.JoinRequested = false
 		queueConfigSave()
 	end
@@ -5342,15 +5409,15 @@ runtimeValue30 = lobbyTab:Dropdown({
 lobbyTab:Button({
 	Title = "Refresh Maps",
 	Callback = function()
-		local runtimeValue4 = getChapters(State.LobbyMode)
-		if not table.find(runtimeValue4, State.LobbyChapter) then
-			State.LobbyChapter = runtimeValue4[1] or ""
+		local value = getChapters(State.LobbyMode)
+		if not table.find(value, State.LobbyChapter) then
+			State.LobbyChapter = value[1] or ""
 		end
 		pcall(function()
-			runtimeValue30:Refresh(runtimeValue4)
+			selectedChapter:Refresh(value)
 		end)
 		pcall(function()
-			runtimeValue30:Select(State.LobbyChapter)
+			selectedChapter:Select(State.LobbyChapter)
 		end)
 		queueConfigSave()
 	end
@@ -5358,8 +5425,8 @@ lobbyTab:Button({
 lobbyTab:Toggle({
 	Title = "Auto Join & Start",
 	Value = State.AutoJoinMap,
-	Callback = function(parameter)
-		State.AutoJoinMap = parameter == true
+	Callback = function(data)
+		State.AutoJoinMap = data == true
 		State.JoinRequested = false
 		queueConfigSave()
 	end
@@ -5371,8 +5438,8 @@ lobbyTab:Dropdown({
 	Multi = true,
 	AllowNone = true,
 	SearchBarEnabled = true,
-	Callback = function(parameter)
-		State.LobbyModifiers = normalizeModifiers(parameter)
+	Callback = function(data)
+		State.LobbyModifiers = normalizeModifiers(data)
 		State.JoinRequested = false
 		queueConfigSave()
 	end
@@ -5446,8 +5513,8 @@ lobbyTab:Dropdown({
 	},
 	Value = State.KnockMethod,
 	Multi = false,
-	Callback = function(parameter)
-		State.KnockMethod = parameter == "TP" and "TP" or "Walk"
+	Callback = function(data)
+		State.KnockMethod = data == "TP" and "TP" or "Walk"
 		if State.AutoKnockDoor then
 			Hub.SetAutoKnock(true)
 		end
@@ -5458,8 +5525,8 @@ UI.KnockToggle = lobbyTab:Toggle({
 	Title = "Auto Knock Door",
 	Desc = "Knock available event houses.",
 	Value = State.AutoKnockDoor,
-	Callback = function(parameter)
-		Hub.SetAutoKnock(parameter)
+	Callback = function(data)
+		Hub.SetAutoKnock(data)
 		queueConfigSave()
 	end
 })
@@ -5469,8 +5536,8 @@ matchTab:Section({
 matchTab:Toggle({
 	Title = "Auto Ready Up",
 	Value = State.AutoReady,
-	Callback = function(parameter)
-		State.AutoReady = parameter == true
+	Callback = function(data)
+		State.AutoReady = data == true
 		queueConfigSave()
 	end
 })
@@ -5482,16 +5549,16 @@ matchTab:Slider({
 		Max = 10,
 		Default = State.ReadyDelay
 	},
-	Callback = function(parameter)
-		State.ReadyDelay = math.clamp(tonumber(parameter) or 1, 0.1, 10)
+	Callback = function(data)
+		State.ReadyDelay = math.clamp(tonumber(data) or 1, 0.1, 10)
 		queueConfigSave()
 	end
 })
 matchTab:Toggle({
 	Title = "Auto Skip Waves",
 	Value = State.AutoSkip,
-	Callback = function(parameter)
-		State.AutoSkip = parameter == true
+	Callback = function(data)
+		State.AutoSkip = data == true
 		queueConfigSave()
 	end
 })
@@ -5503,8 +5570,8 @@ matchTab:Slider({
 		Max = 10,
 		Default = State.SkipDelay
 	},
-	Callback = function(parameter)
-		State.SkipDelay = math.clamp(tonumber(parameter) or 0.35, 0.1, 10)
+	Callback = function(data)
+		State.SkipDelay = math.clamp(tonumber(data) or 0.35, 0.1, 10)
 		queueConfigSave()
 	end
 })
@@ -5512,16 +5579,16 @@ matchTab:Input({
 	Title = "Stop Auto Skip At",
 	Placeholder = "5, 10, 15",
 	Value = State.StopAutoSkipAt,
-	Callback = function(parameter)
-		State.StopAutoSkipAt = tostring(parameter or "")
+	Callback = function(data)
+		State.StopAutoSkipAt = tostring(data or "")
 		queueConfigSave()
 	end
 })
 matchTab:Toggle({
 	Title = "Auto Speed Scale",
 	Value = State.AutoSpeed,
-	Callback = function(parameter)
-		State.AutoSpeed = parameter == true
+	Callback = function(data)
+		State.AutoSpeed = data == true
 		queueConfigSave()
 	end
 })
@@ -5529,8 +5596,8 @@ matchTab:Toggle({
 	Title = "Auto Max Speed",
 	Desc = "Use the highest available speed.",
 	Value = State.AutoMaxSpeed,
-	Callback = function(parameter)
-		State.AutoMaxSpeed = parameter == true
+	Callback = function(data)
+		State.AutoMaxSpeed = data == true
 		queueConfigSave()
 	end
 })
@@ -5546,9 +5613,9 @@ matchTab:Dropdown({
 	},
 	Value = "x" .. tostring(State.Speed),
 	Multi = false,
-	Callback = function(parameter)
-		local runtimeValue4 = tonumber(tostring(parameter):match("%d+")) or 1
-		State.Speed = math.clamp(runtimeValue4, 1, 6)
+	Callback = function(data)
+		local value = tonumber(tostring(data):match("%d+")) or 1
+		State.Speed = math.clamp(value, 1, 6)
 		queueConfigSave()
 	end
 })
@@ -5561,8 +5628,8 @@ matchTab:Slider({
 		Max = 30,
 		Default = State.SpeedScaleDelay
 	},
-	Callback = function(parameter)
-		State.SpeedScaleDelay = math.clamp(tonumber(parameter) or 1, 1, 30)
+	Callback = function(data)
+		State.SpeedScaleDelay = math.clamp(tonumber(data) or 1, 1, 30)
 		queueConfigSave()
 	end
 })
@@ -5582,8 +5649,8 @@ updateMatchCounter()
 matchTab:Toggle({
 	Title = "Auto Back Lobby After X Matches",
 	Value = State.AutoBackLobby,
-	Callback = function(parameter)
-		State.AutoBackLobby = parameter == true
+	Callback = function(data)
+		State.AutoBackLobby = data == true
 		queueConfigSave()
 		updateMatchCounter()
 	end
@@ -5592,8 +5659,8 @@ matchTab:Input({
 	Title = "Matches Before Lobby",
 	Placeholder = "5",
 	Value = tostring(State.MatchesBeforeLobby),
-	Callback = function(parameter)
-		local num = tonumber(tostring(parameter):match("%d+"))
+	Callback = function(data)
+		local num = tonumber(tostring(data):match("%d+"))
 		if num then
 			State.MatchesBeforeLobby = math.max(1, math.floor(num))
 			queueConfigSave()
@@ -5621,17 +5688,21 @@ matchTab:Dropdown({
 	},
 	Value = State.AfterMatch,
 	Multi = false,
-	Callback = function(parameter)
-		State.AfterMatch = parameter
-		State.AutoReplay = parameter == "Replay"
+	Callback = function(selectedAfterMatch)
+		-- Keep the legacy AutoReplay flag synchronized with the dropdown selection.
+		if selectedAfterMatch ~= "None" and selectedAfterMatch ~= "Replay" and selectedAfterMatch ~= "Return Lobby" then
+			return
+		end
+		State.AfterMatch = selectedAfterMatch
+		State.AutoReplay = selectedAfterMatch == "Replay"
 		queueConfigSave()
 	end
 })
 matchTab:Toggle({
 	Title = "Auto Vote Skip Cutscene",
 	Value = State.AutoSkipCutscene,
-	Callback = function(parameter)
-		State.AutoSkipCutscene = parameter == true
+	Callback = function(data)
+		State.AutoSkipCutscene = data == true
 		queueConfigSave()
 	end
 })
@@ -5643,24 +5714,24 @@ webhookTab:Input({
 	Title = "Webhook URL",
 	Placeholder = "https://discord.com/api/webhooks/...",
 	Value = State.WebhookURL,
-	Callback = function(parameter)
-		State.WebhookURL = tostring(parameter or "")
+	Callback = function(data)
+		State.WebhookURL = tostring(data or "")
 		queueConfigSave()
 	end
 })
 webhookTab:Toggle({
 	Title = "Enable Webhook",
 	Value = State.WebhookEnabled,
-	Callback = function(parameter)
-		State.WebhookEnabled = parameter == true
+	Callback = function(data)
+		State.WebhookEnabled = data == true
 		queueConfigSave()
 	end
 })
 webhookTab:Toggle({
 	Title = "Notify On Match End",
 	Value = State.WebhookMatchEnd,
-	Callback = function(parameter)
-		State.WebhookMatchEnd = parameter == true
+	Callback = function(data)
+		State.WebhookMatchEnd = data == true
 		queueConfigSave()
 	end
 })
@@ -5683,8 +5754,8 @@ webhookTab:Toggle({
 	Title = "Webhook Knock Door",
 	Desc = "One report per door sweep.",
 	Value = State.KnockWebhookEnabled,
-	Callback = function(parameter)
-		State.KnockWebhookEnabled = parameter == true
+	Callback = function(data)
+		State.KnockWebhookEnabled = data == true
 		queueConfigSave()
 	end
 })
@@ -5714,38 +5785,38 @@ macrosTab:Button({
 		setStatus(value and "Loadout saved" or "Loadout unavailable", value1)
 	end
 })
-local runtimeValue32 = savedConfig.NewProfileName or ""
+local newProfileName = savedConfig.NewProfileName or ""
 local _ = macrosTab:Input({
 	Title = "Create Macro",
 	Placeholder = "Macro name",
-	Value = runtimeValue32,
-	Callback = function(parameter)
-		runtimeValue32 = sanitizeProfileName(parameter)
-		savedConfig.NewProfileName = runtimeValue32
+	Value = newProfileName,
+	Callback = function(data)
+		newProfileName = sanitizeProfileName(data)
+		savedConfig.NewProfileName = newProfileName
 		queueConfigSave()
 	end
 })
-local runtimeValue33 = listProfiles()
-if # runtimeValue33 == 0 then
-	runtimeValue33 = {
+local profileList = listProfiles()
+if # profileList == 0 then
+	profileList = {
 		"(none)"
 	}
 end
-local runtimeValue34 = State.ProfileName ~= "" and State.ProfileName or runtimeValue33[1]
-local runtimeValue35
-local function refreshMacroProfiles(parameter)
-	local runtimeValue4 = listProfiles()
-	if # runtimeValue4 == 0 then
-		runtimeValue4 = {
+local selectedProfile = State.ProfileName ~= "" and State.ProfileName or profileList[1]
+local profileRefreshConnection
+local function refreshMacroProfiles(data)
+	local value = listProfiles()
+	if # value == 0 then
+		value = {
 			"(none)"
 		}
 	end
 	pcall(function()
-		runtimeValue35:Refresh(runtimeValue4)
+		profileRefreshConnection:Refresh(value)
 	end)
-	if parameter and parameter ~= "" then
+	if data and data ~= "" then
 		pcall(function()
-			runtimeValue35:Select(parameter)
+			profileRefreshConnection:Select(data)
 		end)
 	end
 end
@@ -5767,39 +5838,39 @@ macrosTab:Button({
 	Title = "Create New Macro",
 	Icon = "file-plus",
 	Callback = function()
-		local runtimeValue4 = sanitizeProfileName(runtimeValue32)
-		if runtimeValue4 == "" then
+		local value = sanitizeProfileName(newProfileName)
+		if value == "" then
 			notifyUser("Create Macro", "Enter a macro name first")
 			return
 		end
-		if hasFileApi and isfile(profilePath(runtimeValue4)) then
+		if hasFileApi and isfile(profilePath(value)) then
 			notifyUser("Create Macro", "That macro already exists")
 			return
 		end
 		local actions, profileName, macroLoadout = State.Actions, State.ProfileName, State.MacroLoadout
-		State.Actions, State.ProfileName, State.MacroLoadout = {}, runtimeValue4, nil
-		local value, value1 = saveProfile(runtimeValue4)
+		State.Actions, State.ProfileName, State.MacroLoadout = {}, value, nil
+		local value, value1 = saveProfile(value)
 		if not value then
 			State.Actions, State.ProfileName, State.MacroLoadout = actions, profileName, macroLoadout
 			notifyUser("Create failed", tostring(value1))
 			return
 		end
-		refreshMacroProfiles(runtimeValue4)
+		refreshMacroProfiles(value)
 		updateActionSummary()
-		setStatus("Created", runtimeValue4 .. " is ready to record")
+		setStatus("Created", value .. " is ready to record")
 		queueConfigSave()
 	end
 })
-runtimeValue35 = macrosTab:Dropdown({
+profileRefreshConnection = macrosTab:Dropdown({
 	Title = "Select Macro",
-	Values = runtimeValue33,
-	Value = runtimeValue34,
+	Values = profileList,
+	Value = selectedProfile,
 	Multi = false,
-	Callback = function(parameter)
-		if parameter == "(none)" then
+	Callback = function(data)
+		if data == "(none)" then
 			return
 		end
-		local value, value1 = loadProfile(parameter)
+		local value, value1 = loadProfile(data)
 		if value then
 			updateActionSummary()
 			setStatus("Loaded", string.format("%s (%d actions)", State.ProfileName, # State.Actions))
@@ -5824,13 +5895,13 @@ macrosTab:Button({
 			return
 		end
 		local ok2, result2 = pcall(function()
-			local runtimeValue4 = profilePath(profileName)
-			local runtimeValue5 = MACRO_FOLDER .. "/Deleted"
-			if not isfolder(runtimeValue5) then
-				makefolder(runtimeValue5)
+			local value = profilePath(profileName)
+			local result = MACRO_FOLDER .. "/Deleted"
+			if not isfolder(result) then
+				makefolder(result)
 			end
-			writefile(runtimeValue5 .. "/" .. sanitizeProfileName(profileName) .. "_" .. os.time() .. ".json", readfile(runtimeValue4))
-			delfile(runtimeValue4)
+			writefile(result .. "/" .. sanitizeProfileName(profileName) .. "_" .. os.time() .. ".json", readfile(value))
+			delfile(value)
 		end)
 		if not ok2 then
 			setStatus("Delete failed", tostring(result2))
@@ -5858,50 +5929,50 @@ macrosTab:Dropdown({
 	},
 	Value = State.PlaybackMode,
 	Multi = false,
-	Callback = function(parameter)
-		State.PlaybackMode = parameter
+	Callback = function(data)
+		State.PlaybackMode = data
 		queueConfigSave()
 	end
 })
-local stateFlag6 = false
-local runtimeValue36
-local runtimeValue37
-local function setToggleValue(parameter, parameter2)
-	if not parameter then
+local isInitialized = false
+local profileWatcher
+local profileRefreshTask
+local function setToggleValue(data, options)
+	if not data then
 		return
 	end
-	stateFlag6 = true
+	isInitialized = true
 	pcall(function()
-		parameter:Set(parameter2)
+		data:Set(options)
 	end)
-	stateFlag6 = false
+	isInitialized = false
 end
-UI.SetRecordToggle = function(parameter)
-	setToggleValue(runtimeValue36, parameter)
+UI.SetRecordToggle = function(data)
+	setToggleValue(profileWatcher, data)
 end
-UI.SetPlaybackToggle = function(parameter)
-	setToggleValue(runtimeValue37, parameter)
+UI.SetPlaybackToggle = function(data)
+	setToggleValue(profileRefreshTask, data)
 end
-runtimeValue36 = macrosTab:Toggle({
+profileWatcher = macrosTab:Toggle({
 	Title = "Record",
 	Value = false,
-	Callback = function(parameter)
-		if stateFlag6 then
+	Callback = function(data)
+		if isInitialized then
 			return
 		end
-		if parameter then
+		if data then
 			if State.PlaybackEnabled then
-				setToggleValue(runtimeValue37, false)
+				setToggleValue(profileRefreshTask, false)
 				State.PlaybackEnabled = false
 				queueConfigSave()
 			end
 			if State.Playing then
 				stopPlayback("Stopped to begin recording")
 			end
-			local runtimeValue4 = State.ProfileName ~= "" and State.ProfileName or runtimeValue32
-			local value, value1 = startRecording(runtimeValue4)
+			local value = State.ProfileName ~= "" and State.ProfileName or newProfileName
+			local value, value1 = startRecording(value)
 			if not value then
-				setToggleValue(runtimeValue36, false)
+				setToggleValue(profileWatcher, false)
 				notifyUser("Cannot record", tostring(value1))
 			end
 		elseif State.Recording then
@@ -5915,19 +5986,19 @@ runtimeValue36 = macrosTab:Toggle({
 		end
 	end
 })
-UI.RecordToggle = runtimeValue36
-runtimeValue37 = macrosTab:Toggle({
+UI.RecordToggle = profileWatcher
+profileRefreshTask = macrosTab:Toggle({
 	Title = "Auto Playback Every Match",
 	Value = State.PlaybackEnabled,
-	Callback = function(parameter)
-		if stateFlag6 then
+	Callback = function(data)
+		if isInitialized then
 			return
 		end
-		State.PlaybackEnabled = parameter == true
+		State.PlaybackEnabled = data == true
 		queueConfigSave()
-		if parameter then
+		if data then
 			if State.Recording then
-				setToggleValue(runtimeValue36, false)
+				setToggleValue(profileWatcher, false)
 				stopRecording(true)
 			end
 			local value, value1 = startPlayback()
@@ -5940,7 +6011,7 @@ runtimeValue37 = macrosTab:Toggle({
 	end
 })
 do
-	local dataTable5 = {
+	local macroManager = {
 		Tab = macrosTab,
 		Owner = Hub,
 		HTTP = HttpService,
@@ -5968,19 +6039,19 @@ do
 		Clean = sanitizeProfileName,
 		Path = profilePath,
 		Load = loadProfile,
-		Notify = function(parameter)
-			notifyUser("Macro", tostring(parameter))
+		Notify = function(data)
+			notifyUser("Macro", tostring(data))
 		end,
-		Refresh = function(parameter)
-			refreshMacroProfiles(parameter)
+		Refresh = function(data)
+			refreshMacroProfiles(data)
 			updateActionSummary()
 			queueConfigSave()
 		end,
-		Validate = function(parameter)
-			if parameter.Universe ~= nil and parameter.Universe ~= game.GameId then
+		Validate = function(data)
+			if data.Universe ~= nil and data.Universe ~= game.GameId then
 				return false, "Wrong game"
 			end
-			for _, item in ipairs(parameter.Actions) do
+			for _, item in ipairs(data.Actions) do
 				if item.Type == "Place" then
 					if type(item.Unit) ~= "string" or type(item.CFrame) ~= "table" or # item.CFrame ~= 12 or type(item.Handle) ~= "string" then
 						return false, "Invalid Skibi placement"
@@ -5994,54 +6065,54 @@ do
 			end
 			return true
 		end,
-		Legacy = function(parameter)
-			return parameter.Game == nil and type(parameter.Version) == "number" and parameter.Version >= 1 and parameter.Version <= 6
+		Legacy = function(data)
+			return data.Game == nil and type(data.Version) == "number" and data.Version >= 1 and data.Version <= 6
 		end
 	}
-	assert(type(dataTable5.Load) == "function" and type(dataTable5.Path) == "function" and type(dataTable5.Clean) == "function", "Macro import adapter unavailable")
-	local dataTable6 = {}
-	local function utilityRoutine20(parameter)
-		if type(parameter) ~= "string" then
+	assert(type(macroManager.Load) == "function" and type(macroManager.Path) == "function" and type(macroManager.Clean) == "function", "Macro import adapter unavailable")
+	local macroImporter = {}
+	local function parseMacroImport(data)
+		if type(data) ~= "string" then
 			return nil, "Paste macro JSON or a Discord file link"
 		end
-		parameter = parameter:match("^%s*(.-)%s*$")
-		if parameter:sub(1, 3) == "```" then
-			parameter = parameter:sub(4):gsub("%s*```$", ""):gsub("^[jJ][sS][oO][nN]%s+", ""):match("^%s*(.-)%s*$")
+		data = data:match("^%s*(.-)%s*$")
+		if data:sub(1, 3) == "```" then
+			data = data:sub(4):gsub("%s*```$", ""):gsub("^[jJ][sS][oO][nN]%s+", ""):match("^%s*(.-)%s*$")
 		end
-		if parameter == "" then
+		if data == "" then
 			return nil, "Paste macro JSON or a Discord file link"
 		end
-		local runtimeValue4 = parameter:match("^https?://") ~= nil
-		if runtimeValue4 then
-			if # parameter > 4096 or parameter:find("[%s%c<>\\]") then
+		local value = data:match("^https?://") ~= nil
+		if value then
+			if # data > 4096 or data:find("[%s%c<>\\]") then
 				return nil, "Paste one complete Discord file link"
 			end
-			local value, value1 = parameter:match("^https://([^/%?#]+)(/[^#]*)$")
+			local value, value1 = data:match("^https://([^/%?#]+)(/[^#]*)$")
 			if not value or not (value:lower() == "cdn.discordapp.com" or value:lower() == "media.discordapp.net") or not value1:match("^/attachments/%d+/%d+/[^%?#]+") then
 				return nil, "Use the Discord file link, not a message or Copy Link page URL"
 			end
-			local runtimeValue5 = type(request) == "function" and request or type(http_request) == "function" and http_request or type(syn) == "table" and type(syn.request) == "function" and syn.request or type(http) == "table" and type(http.request) == "function" and http.request
+			local result = type(request) == "function" and request or type(http_request) == "function" and http_request or type(syn) == "table" and type(syn.request) == "function" and syn.request or type(http) == "table" and type(http.request) == "function" and http.request
 			local ok2, result2, result22 = pcall(function()
-				if runtimeValue5 then
-					local runtimeValue6 = runtimeValue5({
-						Url = parameter,
+				if result then
+					local child = result({
+						Url = data,
 						Method = "GET",
 						Headers = {
 							Accept = "application/json"
 						},
 						Redirect = false
 					})
-					assert(type(runtimeValue6) == "table", "Invalid HTTP response")
-					local num = tonumber(runtimeValue6.StatusCode or runtimeValue6.Status)
+					assert(type(child) == "table", "Invalid HTTP response")
+					local num = tonumber(child.StatusCode or child.Status)
 					if num == 403 or num == 404 then
 						return nil, "Link expired or unavailable; copy a fresh file link from Discord"
 					end
 					if num and (num < 200 or num >= 300) then
 						return nil, "Download failed (HTTP " .. num .. ")"
 					end
-					return runtimeValue6.Body or runtimeValue6.body
+					return child.Body or child.body
 				end
-				return game:HttpGet(parameter)
+				return game:HttpGet(data)
 			end)
 			if not ok2 then
 				return nil, "Cannot download macro; check the link, network and executor HTTP support"
@@ -6049,28 +6120,28 @@ do
 			if type(result2) ~= "string" or result2 == "" then
 				return nil, result22 or "Link expired or unavailable; copy a fresh file link from Discord"
 			end
-			parameter = result2
+			data = result2
 		end
-		if # parameter > 200 * 1024 then
+		if # data > 200 * 1024 then
 			return nil, "Macro exceeds 200 KB"
 		end
-		parameter = parameter:gsub("^\239\187\191", "")
-		return parameter, runtimeValue4
+		data = data:gsub("^\239\187\191", "")
+		return data, value
 	end
-	local function utilityRoutine21()
-		local dataTable = {}
-		for _, item in ipairs(dataTable5.StateTables) do
-			local dataTable2 = {}
+	local function snapshotMacroState()
+		local records = {}
+		for _, item in ipairs(macroManager.StateTables) do
+			local copiedData = {}
 			for index, item3 in pairs(item) do
-				dataTable2[index] = item3
+				copiedData[index] = item3
 			end
-			dataTable[# dataTable + 1] = {
+			records[# records + 1] = {
 				State = item,
-				Copy = dataTable2
+				Copy = copiedData
 			}
 		end
 		return function()
-			for _, item4 in ipairs(dataTable) do
+			for _, item4 in ipairs(records) do
 				for index2 in pairs(item4.State) do
 					item4.State[index2] = nil
 				end
@@ -6080,45 +6151,45 @@ do
 			end
 		end
 	end
-	local function utilityRoutine22(parameter, parameter2)
-		assert(parameter2 < 40, "Macro nesting is too deep")
-		if type(parameter) == "number" then
-			assert(parameter == parameter and math.abs(parameter) < math.huge, "Invalid macro number")
+	local function sanitizeImportedData(data, options)
+		assert(options < 40, "Macro nesting is too deep")
+		if type(data) == "number" then
+			assert(data == data and math.abs(data) < math.huge, "Invalid macro number")
 		end
-		if type(parameter) ~= "table" then
-			return parameter
+		if type(data) ~= "table" then
+			return data
 		end
-		local dataTable = {}
-		for index, item in pairs(parameter) do
-			local runtimeValue4 = type(index) == "string" and (index:lower() == "owneruserid" or index:lower() == "ownerid")
-			if not runtimeValue4 then
-				dataTable[index] = utilityRoutine22(item, parameter2 + 1)
+		local records = {}
+		for index, item in pairs(data) do
+			local value = type(index) == "string" and (index:lower() == "owneruserid" or index:lower() == "ownerid")
+			if not value then
+				records[index] = sanitizeImportedData(item, options + 1)
 			end
 		end
-		return dataTable
+		return records
 	end
-	function dataTable6.Import(parameter, parameter2)
-		if dataTable6.Busy or dataTable6.Fetching or dataTable5.Busy() then
+	function macroImporter.Import(data, options)
+		if macroImporter.Busy or macroImporter.Fetching or macroManager.Busy() then
 			return false, "Stop recording and Auto Playback before importing"
 		end
-		if not dataTable5.FS() or type(delfile) ~= "function" then
+		if not macroManager.FS() or type(delfile) ~= "function" then
 			return false, "File read/write/delete APIs required"
 		end
-		dataTable6.Fetching = true
-		local value, value1 = utilityRoutine20(parameter)
-		dataTable6.Fetching = false
+		macroImporter.Fetching = true
+		local value, value1 = parseMacroImport(data)
+		macroImporter.Fetching = false
 		if not value then
 			return false, value1
 		end
-		if dataTable6.Busy or dataTable5.Busy() then
+		if macroImporter.Busy or macroManager.Busy() then
 			return false, "Stop recording and Auto Playback before importing"
 		end
-		parameter = value
-		local ok2, result2 = pcall(dataTable5.HTTP.JSONDecode, dataTable5.HTTP, parameter)
+		data = value
+		local ok2, result2 = pcall(macroManager.HTTP.JSONDecode, macroManager.HTTP, data)
 		if not ok2 or type(result2) ~= "table" then
 			return false, value1 and "Link did not return macro JSON; copy a fresh Discord file link" or "Invalid JSON; paste the complete macro file"
 		end
-		if not table.find(dataTable5.Games, result2.Game) and not (dataTable5.Legacy and dataTable5.Legacy(result2)) then
+		if not table.find(macroManager.Games, result2.Game) and not (macroManager.Legacy and macroManager.Legacy(result2)) then
 			return false, "This macro belongs to another game"
 		end
 		if type(result2.Actions) ~= "table" or # result2.Actions == 0 or # result2.Actions > 50000 then
@@ -6127,7 +6198,7 @@ do
 		local count = 0
 		for index, item in pairs(result2.Actions) do
 			count = count + 1
-			if type(index) ~= "number" or index % 1 ~= 0 or index < 1 or index > # result2.Actions or type(item) ~= "table" or not table.find(dataTable5.Kinds, item[dataTable5.KindKey]) then
+			if type(index) ~= "number" or index % 1 ~= 0 or index < 1 or index > # result2.Actions or type(item) ~= "table" or not table.find(macroManager.Kinds, item[macroManager.KindKey]) then
 				return false, "Invalid macro action"
 			end
 			for _, item3 in ipairs({
@@ -6137,8 +6208,8 @@ do
 				"WaveAt",
 				"WaveTime"
 			}) do
-				local runtimeValue4 = item[item3]
-				if runtimeValue4 ~= nil and (type(runtimeValue4) ~= "number" or runtimeValue4 ~= runtimeValue4 or runtimeValue4 < 0 or runtimeValue4 == math.huge) then
+				local value = item[item3]
+				if value ~= nil and (type(value) ~= "number" or value ~= value or value < 0 or value == math.huge) then
 					return false, "Invalid action " .. item3
 				end
 			end
@@ -6146,161 +6217,161 @@ do
 		if count ~= # result2.Actions then
 			return false, "Macro actions must be a list"
 		end
-		ok2, result2 = pcall(utilityRoutine22, result2, 0)
+		ok2, result2 = pcall(sanitizeImportedData, result2, 0)
 		if not ok2 then
 			return false, tostring(result2)
 		end
-		if dataTable5.Validate then
-			local ok3, result3, result22 = pcall(dataTable5.Validate, result2)
+		if macroManager.Validate then
+			local ok3, result3, result22 = pcall(macroManager.Validate, result2)
 			if not ok3 or not result3 then
 				return false, ok3 and (result22 or "Invalid macro data") or "Invalid macro data"
 			end
 		end
-		parameter2 = tostring(parameter2 or ""):match("^%s*(.-)%s*$")
-		if parameter2 == "" then
-			parameter2 = type(result2.Name) == "string" and result2.Name or type(result2.Profile) == "string" and result2.Profile or "Imported Macro"
+		options = tostring(options or ""):match("^%s*(.-)%s*$")
+		if options == "" then
+			options = type(result2.Name) == "string" and result2.Name or type(result2.Profile) == "string" and result2.Profile or "Imported Macro"
 		end
-		parameter2 = dataTable5.Clean(parameter2)
-		local lowered = parameter2:lower()
-		if parameter2 == "" or lowered == "settings" or lowered == "hubconfig" or lowered == "playback_debug" or lowered:match("_config$") then
+		options = macroManager.Clean(options)
+		local lowered = options:lower()
+		if options == "" or lowered == "settings" or lowered == "hubconfig" or lowered == "playback_debug" or lowered:match("_config$") then
 			return false, "Enter another macro name"
 		end
-		local runtimeValue5 = dataTable5.Path(parameter2)
-		if not runtimeValue5 then
+		local result = macroManager.Path(options)
+		if not result then
 			return false, "Invalid macro name"
 		end
-		local ok4, result4 = pcall(isfile, runtimeValue5)
+		local ok4, result4 = pcall(isfile, result)
 		if not ok4 then
 			return false, "Cannot check existing macro files"
 		end
 		if result4 then
 			return false, "Macro name already exists; choose another name"
 		end
-		local runtimeValue6 = utilityRoutine21()
-		dataTable6.Busy = true
+		local child = snapshotMacroState()
+		macroImporter.Busy = true
 		local ok5, result5 = pcall(function()
-			local json = dataTable5.HTTP:JSONEncode(result2)
-			writefile(runtimeValue5 .. ".pending", json)
-			assert(readfile(runtimeValue5 .. ".pending") == json, "Pending verification failed")
-			assert(not isfile(runtimeValue5), "Macro name already exists")
-			dataTable6.Created = runtimeValue5
-			writefile(runtimeValue5, json)
-			assert(readfile(runtimeValue5) == json, "Save verification failed")
-			local value2, value12 = dataTable5.Load(parameter2)
+			local json = macroManager.HTTP:JSONEncode(result2)
+			writefile(result .. ".pending", json)
+			assert(readfile(result .. ".pending") == json, "Pending verification failed")
+			assert(not isfile(result), "Macro name already exists")
+			macroImporter.Created = result
+			writefile(result, json)
+			assert(readfile(result) == json, "Save verification failed")
+			local value2, value12 = macroManager.Load(options)
 			assert(value2, value12 or "Macro failed its game-specific validation")
 		end)
 		if not ok5 then
-			runtimeValue6()
-			if dataTable6.Created then
-				pcall(delfile, dataTable6.Created)
+			child()
+			if macroImporter.Created then
+				pcall(delfile, macroImporter.Created)
 			end
-			dataTable6.Created = nil
-			dataTable6.Busy = false
-			pcall(delfile, runtimeValue5 .. ".pending")
+			macroImporter.Created = nil
+			macroImporter.Busy = false
+			pcall(delfile, result .. ".pending")
 			return false, "Import failed: " .. tostring(result5)
 		end
-		dataTable6.Created = nil
-		dataTable6.Busy = false
-		pcall(delfile, runtimeValue5 .. ".pending")
-		return true, parameter2, # result2.Actions
+		macroImporter.Created = nil
+		macroImporter.Busy = false
+		pcall(delfile, result .. ".pending")
+		return true, options, # result2.Actions
 	end
-	dataTable5.Owner.MacroImport = dataTable6
-	dataTable5.Tab:Section({
+	macroManager.Owner.MacroImport = macroImporter
+	macroManager.Tab:Section({
 		Title = "Import Macro"
 	})
-	local runtimeValue38, runtimeValue39 = "", ""
-	local macroNameInput = dataTable5.Tab:Input({
+	local usernameInput, userIdInput = "", ""
+	local macroNameInput = macroManager.Tab:Input({
 		Title = "Macro Name",
 		Desc = "Enter Any Names You Want",
 		Placeholder = "Imported Macro",
 		Value = "",
-		Callback = function(parameter)
-			runtimeValue38 = tostring(parameter or "")
+		Callback = function(data)
+			usernameInput = tostring(data or "")
 		end
 	})
-	local macroJSONInput = dataTable5.Tab:Input({
+	local macroJSONInput = macroManager.Tab:Input({
 		Title = "Macro JSON",
 		Desc = "Paste JSON or a Discord file link.",
 		Type = "Textarea",
 		ClearTextOnFocus = false,
 		Placeholder = "Paste JSON or Discord file link...",
 		Value = "",
-		Callback = function(parameter)
-			runtimeValue39 = tostring(parameter or "")
+		Callback = function(data)
+			userIdInput = tostring(data or "")
 		end
 	})
-	dataTable5.Tab:Button({
+	macroManager.Tab:Button({
 		Title = "Import Macro",
 		Icon = "download",
 		Callback = function()
-			local value, value1, value2 = dataTable6.Import(runtimeValue39, runtimeValue38)
+			local value, value1, value2 = macroImporter.Import(userIdInput, usernameInput)
 			if not value then
-				dataTable5.Notify(value1)
+				macroManager.Notify(value1)
 				return
 			end
-			runtimeValue38 = value1
-			runtimeValue39 = ""
+			usernameInput = value1
+			userIdInput = ""
 			macroNameInput:Set(value1)
 			macroJSONInput:Set("")
-			local ok2, _ = pcall(dataTable5.Refresh, value1)
-			dataTable5.Notify("Imported " .. value1 .. " (" .. tostring(value2) .. " actions)" .. (not ok2 and "; reopen Select Macro to refresh" or ""))
+			local ok2, _ = pcall(macroManager.Refresh, value1)
+			macroManager.Notify("Imported " .. value1 .. " (" .. tostring(value2) .. " actions)" .. (not ok2 and "; reopen Select Macro to refresh" or ""))
 		end
 	})
 end
-UI.PlayToggle = runtimeValue37
+UI.PlayToggle = profileRefreshTask
 do
-	local runtimeValue40, runtimeValue41, runtimeValue42 = Hub, State, LocalPlayer
-	local runtimeValue43 = type(getgenv) == "function" and getgenv() or _G
+	local hubReference, stateReference, localPlayerReference = Hub, State, LocalPlayer
+	local globalEnvironment = type(getgenv) == "function" and getgenv() or _G
 	local text3 = "__KeroHideUser_Skibidi_Defense_Hub"
-	local runtimeValue44 = runtimeValue43[text3]
-	if runtimeValue44 and type(runtimeValue44.Destroy) == "function" then
-		pcall(runtimeValue44.Destroy)
+	local previousGlobalValue = globalEnvironment[text3]
+	if previousGlobalValue and type(previousGlobalValue.Destroy) == "function" then
+		pcall(previousGlobalValue.Destroy)
 	end
-	local dataTable7 = {
+	local playerDisplayData = {
 		Alive = true,
 		Enabled = false,
 		Saved = {},
 		Generation = 0
 	}
-	runtimeValue40.HideUserController = dataTable7
-	runtimeValue43[text3] = dataTable7
-	dataTable7.ImageSaved = {}
-	dataTable7.ImageWatches = {}
-	dataTable7.ImageConnections = {}
-	local function utilityRoutine23()
-		for _, item in ipairs(dataTable7.ImageConnections) do
+	hubReference.HideUserController = playerDisplayData
+	globalEnvironment[text3] = playerDisplayData
+	playerDisplayData.ImageSaved = {}
+	playerDisplayData.ImageWatches = {}
+	playerDisplayData.ImageConnections = {}
+	local function setupPlayerDisplay()
+		for _, item in ipairs(playerDisplayData.ImageConnections) do
 			pcall(item.Disconnect, item)
 		end
-		for _, item3 in pairs(dataTable7.ImageWatches) do
+		for _, item3 in pairs(playerDisplayData.ImageWatches) do
 			for _, item4 in ipairs(item3) do
 				pcall(item4.Disconnect, item4)
 			end
 		end
-		dataTable7.ImageConnections = {}
-		dataTable7.ImageWatches = {}
-		for index, item5 in pairs(dataTable7.ImageSaved) do
+		playerDisplayData.ImageConnections = {}
+		playerDisplayData.ImageWatches = {}
+		for index, item5 in pairs(playerDisplayData.ImageSaved) do
 			pcall(function()
 				index.ImageTransparency = item5
 			end)
 		end
-		dataTable7.ImageSaved = {}
+		playerDisplayData.ImageSaved = {}
 	end
-	local function utilityRoutine24(parameter)
-		local runtimeValue4 = dataTable7.PlayerNames or {}
-		local parent = parameter.Parent
+	local function updatePlayerNames(data)
+		local value = playerDisplayData.PlayerNames or {}
+		local parent = data.Parent
 		for _ = 1, 2 do
 			if not parent then
 				break
 			end
-			if runtimeValue4[parent.Name] then
+			if value[parent.Name] then
 				return true
 			end
 			for _, item in ipairs(parent:GetChildren()) do
 				if item:IsA("TextLabel") or item:IsA("TextButton") then
-					local runtimeValue5 = item.Name:lower():gsub("[^%a]", "")
-					if runtimeValue5 == "username" or runtimeValue5 == "displayname" or runtimeValue5 == "playername" or runtimeValue5 == "name" or runtimeValue5 == "namelabel" then
+					local result = item.Name:lower():gsub("[^%a]", "")
+					if result == "username" or result == "displayname" or result == "playername" or result == "name" or result == "namelabel" then
 						local matched2 = tostring(item.Text):gsub("<[^>]+>", ""):match("^%s*(.-)%s*$")
-						if runtimeValue4[matched2] or runtimeValue41.HideName and matched2 == "Player" then
+						if value[matched2] or stateReference.HideName and matched2 == "Player" then
 							return true
 						end
 					end
@@ -6310,149 +6381,149 @@ do
 		end
 		return false
 	end
-	local function utilityRoutine25(parameter)
-		local runtimeValue4 = ""
+	local function getPlayerNameKey(data)
+		local value = ""
 		pcall(function()
-			runtimeValue4 = tostring(parameter.Image):lower()
+			value = tostring(data.Image):lower()
 		end)
-		if runtimeValue4:find("rbxthumb://", 1, true) and (runtimeValue4:find("type=avatar", 1, true) or runtimeValue4:find("type=headshot", 1, true)) then
+		if value:find("rbxthumb://", 1, true) and (value:find("type=avatar", 1, true) or value:find("type=headshot", 1, true)) then
 			return true
 		end
-		if runtimeValue4:find("headshot%-thumbnail") or runtimeValue4:find("avatar%-thumbnail") or runtimeValue4:find("avatar%.ashx") or runtimeValue4:find("headshot%.ashx") or runtimeValue4:find("thumbnails.roblox.com/v1/users/", 1, true) then
+		if value:find("headshot%-thumbnail") or value:find("avatar%-thumbnail") or value:find("avatar%.ashx") or value:find("headshot%.ashx") or value:find("thumbnails.roblox.com/v1/users/", 1, true) then
 			return true
 		end
-		local runtimeValue5 = parameter.Name:lower():gsub("[^%a]", "")
-		if runtimeValue5:find("avatar", 1, true) or runtimeValue5:find("headshot", 1, true) or runtimeValue5:find("portrait", 1, true) or runtimeValue5 == "playericon" or runtimeValue5 == "playerimage" or runtimeValue5 == "profilepicture" then
+		local result = data.Name:lower():gsub("[^%a]", "")
+		if result:find("avatar", 1, true) or result:find("headshot", 1, true) or result:find("portrait", 1, true) or result == "playericon" or result == "playerimage" or result == "profilepicture" then
 			return true
 		end
-		return utilityRoutine24(parameter)
+		return updatePlayerNames(data)
 	end
-	local function utilityRoutine26()
-		utilityRoutine23()
-		if not dataTable7.Alive or not dataTable7.Enabled then
+	local function setupPlayerImageTracking()
+		setupPlayerDisplay()
+		if not playerDisplayData.Alive or not playerDisplayData.Enabled then
 			return
 		end
-		dataTable7.PlayerNames = {}
-		local function utilityRoutine(parameter)
-			if parameter.Name then
-				dataTable7.PlayerNames[parameter.Name] = true
+		playerDisplayData.PlayerNames = {}
+		local function helperFunction(data)
+			if data.Name then
+				playerDisplayData.PlayerNames[data.Name] = true
 			end
-			if parameter.DisplayName then
-				dataTable7.PlayerNames[parameter.DisplayName] = true
+			if data.DisplayName then
+				playerDisplayData.PlayerNames[data.DisplayName] = true
 			end
-			if parameter.UserId then
-				dataTable7.PlayerNames[tostring(parameter.UserId)] = true
+			if data.UserId then
+				playerDisplayData.PlayerNames[tostring(data.UserId)] = true
 			end
 		end
-		utilityRoutine(runtimeValue42)
-		local runtimeValue4
+		helperFunction(localPlayerReference)
+		local value
 		pcall(function()
-			runtimeValue4 = game:GetService("Players")
-			for _, item in ipairs(runtimeValue4:GetPlayers()) do
-				utilityRoutine(item)
+			value = game:GetService("Players")
+			for _, item in ipairs(value:GetPlayers()) do
+				helperFunction(item)
 			end
 		end)
-		local dataTable = setmetatable({}, {
+		local records = setmetatable({}, {
 			__mode = "k"
 		})
-		local function utilityRoutine2(parameter)
-			if not dataTable7.Alive or not dataTable7.Enabled or dataTable[parameter] then
+		local function createUiElement(data)
+			if not playerDisplayData.Alive or not playerDisplayData.Enabled or records[data] then
 				return
 			end
-			if not (parameter:IsA("ImageLabel") or parameter:IsA("ImageButton") or parameter:IsA("ViewportFrame")) then
+			if not (data:IsA("ImageLabel") or data:IsA("ImageButton") or data:IsA("ViewportFrame")) then
 				return
 			end
-			local runtimeValue5 = utilityRoutine25(parameter)
-			if runtimeValue5 then
-				if dataTable7.ImageSaved[parameter] == nil then
-					dataTable7.ImageSaved[parameter] = parameter.ImageTransparency
+			local result = getPlayerNameKey(data)
+			if result then
+				if playerDisplayData.ImageSaved[data] == nil then
+					playerDisplayData.ImageSaved[data] = data.ImageTransparency
 				end
-				dataTable[parameter] = true
-				parameter.ImageTransparency = 1
-				dataTable[parameter] = nil
-			elseif dataTable7.ImageSaved[parameter] ~= nil then
-				local runtimeValue6 = dataTable7.ImageSaved[parameter]
-				dataTable7.ImageSaved[parameter] = nil
-				dataTable[parameter] = true
-				parameter.ImageTransparency = runtimeValue6
-				dataTable[parameter] = nil
+				records[data] = true
+				data.ImageTransparency = 1
+				records[data] = nil
+			elseif playerDisplayData.ImageSaved[data] ~= nil then
+				local child = playerDisplayData.ImageSaved[data]
+				playerDisplayData.ImageSaved[data] = nil
+				records[data] = true
+				data.ImageTransparency = child
+				records[data] = nil
 			end
 		end
-		local function utilityRoutine3(parameter)
-			local parent = parameter.Parent
+		local function setupUiElement(data)
+			local parent = data.Parent
 			if not parent then
 				return
 			end
-			for index in pairs(dataTable7.ImageWatches) do
+			for index in pairs(playerDisplayData.ImageWatches) do
 				if index.Parent == parent or index.Parent and index.Parent.Parent == parent then
-					pcall(utilityRoutine2, index)
+					pcall(createUiElement, index)
 				end
 			end
 		end
-		local function utilityRoutine27(parameter)
-			if dataTable7.ImageWatches[parameter] then
-				pcall(utilityRoutine2, parameter)
+		local function isPlayerDisplayElement(data)
+			if playerDisplayData.ImageWatches[data] then
+				pcall(createUiElement, data)
 				return
 			end
-			local runtimeValue5 = parameter:IsA("ImageLabel") or parameter:IsA("ImageButton") or parameter:IsA("ViewportFrame")
-			local runtimeValue6 = parameter.Name:lower():gsub("[^%a]", "")
-			local runtimeValue7 = (parameter:IsA("TextLabel") or parameter:IsA("TextButton")) and (runtimeValue6 == "username" or runtimeValue6 == "displayname" or runtimeValue6 == "playername" or runtimeValue6 == "name" or runtimeValue6 == "namelabel")
-			if not runtimeValue5 and not runtimeValue7 then
+			local result = data:IsA("ImageLabel") or data:IsA("ImageButton") or data:IsA("ViewportFrame")
+			local child = data.Name:lower():gsub("[^%a]", "")
+			local element = (data:IsA("TextLabel") or data:IsA("TextButton")) and (child == "username" or child == "displayname" or child == "playername" or child == "name" or child == "namelabel")
+			if not result and not element then
 				return
 			end
-			local dataTable2 = {}
-			dataTable7.ImageWatches[parameter] = dataTable2
-			local function utilityRoutine28(parameter2, parameter3)
+			local copiedData = {}
+			playerDisplayData.ImageWatches[data] = copiedData
+			local function updatePlayerDisplayElement(options, callback)
 				local ok2, result2 = pcall(function()
-					return parameter:GetPropertyChangedSignal(parameter2):Connect(parameter3)
+					return data:GetPropertyChangedSignal(options):Connect(callback)
 				end)
 				if ok2 then
-					dataTable2[# dataTable2 + 1] = result2
+					copiedData[# copiedData + 1] = result2
 				end
 			end
-			if runtimeValue5 then
-				utilityRoutine28("Image", function()
-					pcall(utilityRoutine2, parameter)
+			if result then
+				updatePlayerDisplayElement("Image", function()
+					pcall(createUiElement, data)
 				end)
-				utilityRoutine28("Name", function()
-					pcall(utilityRoutine2, parameter)
+				updatePlayerDisplayElement("Name", function()
+					pcall(createUiElement, data)
 				end)
-				if parameter.AncestryChanged then
-					dataTable2[# dataTable2 + 1] = parameter.AncestryChanged:Connect(function()
-						pcall(utilityRoutine2, parameter)
+				if data.AncestryChanged then
+					copiedData[# copiedData + 1] = data.AncestryChanged:Connect(function()
+						pcall(createUiElement, data)
 					end)
 				end
-				utilityRoutine28("ImageTransparency", function()
-					if dataTable[parameter] or not dataTable7.Enabled then
+				updatePlayerDisplayElement("ImageTransparency", function()
+					if records[data] or not playerDisplayData.Enabled then
 						return
 					end
-					if dataTable7.ImageSaved[parameter] ~= nil then
-						dataTable7.ImageSaved[parameter] = parameter.ImageTransparency
+					if playerDisplayData.ImageSaved[data] ~= nil then
+						playerDisplayData.ImageSaved[data] = data.ImageTransparency
 					end
-					pcall(utilityRoutine2, parameter)
+					pcall(createUiElement, data)
 				end)
-				pcall(utilityRoutine2, parameter)
+				pcall(createUiElement, data)
 			else
-				utilityRoutine28("Text", function()
-					utilityRoutine3(parameter)
+				updatePlayerDisplayElement("Text", function()
+					setupUiElement(data)
 				end)
-				utilityRoutine3(parameter)
+				setupUiElement(data)
 			end
-			if parameter.Destroying then
-				dataTable2[# dataTable2 + 1] = parameter.Destroying:Connect(function()
-					for _, item in ipairs(dataTable2) do
+			if data.Destroying then
+				copiedData[# copiedData + 1] = data.Destroying:Connect(function()
+					for _, item in ipairs(copiedData) do
 						pcall(item.Disconnect, item)
 					end
-					dataTable7.ImageWatches[parameter] = nil
-					dataTable7.ImageSaved[parameter] = nil
+					playerDisplayData.ImageWatches[data] = nil
+					playerDisplayData.ImageSaved[data] = nil
 				end)
 			end
 		end
-		local dataTable3 = {}
+		local actionData = {}
 		pcall(function()
-			local playerGui = runtimeValue42:FindFirstChildOfClass("PlayerGui")
+			local playerGui = localPlayerReference:FindFirstChildOfClass("PlayerGui")
 			if playerGui then
-				dataTable3[# dataTable3 + 1] = playerGui
+				actionData[# actionData + 1] = playerGui
 			end
 		end)
 		for _, item3 in ipairs({
@@ -6460,86 +6531,86 @@ do
 			"Workspace"
 		}) do
 			pcall(function()
-				dataTable3[# dataTable3 + 1] = game:GetService(item3)
+				actionData[# actionData + 1] = game:GetService(item3)
 			end)
 		end
-		local function utilityRoutine29(parameter)
-			if parameter.DescendantAdded then
-				dataTable7.ImageConnections[# dataTable7.ImageConnections + 1] = parameter.DescendantAdded:Connect(function(parameter2)
+		local function refreshPlayerDisplay(data)
+			if data.DescendantAdded then
+				playerDisplayData.ImageConnections[# playerDisplayData.ImageConnections + 1] = data.DescendantAdded:Connect(function(options)
 					task.defer(function()
-						if dataTable7.Alive and dataTable7.Enabled then
-							pcall(utilityRoutine27, parameter2)
+						if playerDisplayData.Alive and playerDisplayData.Enabled then
+							pcall(isPlayerDisplayElement, options)
 						end
 					end)
 				end)
 			end
-			local ok2, result2 = pcall(parameter.GetDescendants, parameter)
+			local ok2, result2 = pcall(data.GetDescendants, data)
 			if ok2 then
 				for _, item in ipairs(result2) do
-					pcall(utilityRoutine27, item)
+					pcall(isPlayerDisplayElement, item)
 				end
 			end
 		end
-		for _, item4 in ipairs(dataTable3) do
-			utilityRoutine29(item4)
+		for _, item4 in ipairs(actionData) do
+			refreshPlayerDisplay(item4)
 		end
-		if runtimeValue42.ChildAdded then
-			dataTable7.ImageConnections[# dataTable7.ImageConnections + 1] = runtimeValue42.ChildAdded:Connect(function(parameter)
-				if dataTable7.Alive and dataTable7.Enabled and parameter:IsA("PlayerGui") then
-					utilityRoutine29(parameter)
+		if localPlayerReference.ChildAdded then
+			playerDisplayData.ImageConnections[# playerDisplayData.ImageConnections + 1] = localPlayerReference.ChildAdded:Connect(function(data)
+				if playerDisplayData.Alive and playerDisplayData.Enabled and data:IsA("PlayerGui") then
+					refreshPlayerDisplay(data)
 				end
 			end)
 		end
-		if runtimeValue4 and runtimeValue4.PlayerAdded then
-			dataTable7.ImageConnections[# dataTable7.ImageConnections + 1] = runtimeValue4.PlayerAdded:Connect(function(parameter)
-				utilityRoutine(parameter)
-				for index in pairs(dataTable7.ImageWatches) do
-					pcall(utilityRoutine2, index)
+		if value and value.PlayerAdded then
+			playerDisplayData.ImageConnections[# playerDisplayData.ImageConnections + 1] = value.PlayerAdded:Connect(function(data)
+				helperFunction(data)
+				for index in pairs(playerDisplayData.ImageWatches) do
+					pcall(createUiElement, index)
 				end
 			end)
 		end
 	end
-	local function utilityRoutine30()
-		for index, item in pairs(dataTable7.Saved) do
+	local function initializePlayerDisplay()
+		for index, item in pairs(playerDisplayData.Saved) do
 			for index2, item3 in pairs(item) do
 				pcall(function()
 					index[index2] = item3
 				end)
 			end
 		end
-		dataTable7.Saved = {}
+		playerDisplayData.Saved = {}
 	end
-	local function utilityRoutine31(parameter)
-		dataTable7.Generation = dataTable7.Generation + 1
-		local generation = dataTable7.Generation
-		if dataTable7.Descendants then
-			dataTable7.Descendants:Disconnect()
-			dataTable7.Descendants = nil
+	local function applyPlayerDisplaySettings(data)
+		playerDisplayData.Generation = playerDisplayData.Generation + 1
+		local generation = playerDisplayData.Generation
+		if playerDisplayData.Descendants then
+			playerDisplayData.Descendants:Disconnect()
+			playerDisplayData.Descendants = nil
 		end
-		utilityRoutine30()
-		dataTable7.Character = parameter
-		if not dataTable7.Alive or not dataTable7.Enabled or not parameter then
+		initializePlayerDisplay()
+		playerDisplayData.Character = data
+		if not playerDisplayData.Alive or not playerDisplayData.Enabled or not data then
 			return
 		end
 		local color = Color3.fromRGB(255, 0, 0)
-		local function utilityRoutine(parameter2)
-			if dataTable7.Saved[parameter2] or not parameter2:IsDescendantOf(parameter) then
+		local function helperFunction(options)
+			if playerDisplayData.Saved[options] or not options:IsDescendantOf(data) then
 				return
 			end
-			local runtimeValue4
-			if parameter2:IsA("Accessory") or parameter2:IsA("Shirt") or parameter2:IsA("Pants") or parameter2:IsA("ShirtGraphic") or parameter2:IsA("CharacterMesh") then
-				runtimeValue4 = {
+			local value
+			if options:IsA("Accessory") or options:IsA("Shirt") or options:IsA("Pants") or options:IsA("ShirtGraphic") or options:IsA("CharacterMesh") then
+				value = {
 					Parent = false
 				}
-			elseif parameter2:IsA("BasePart") and parameter2.Parent == parameter and parameter2.Name ~= "HumanoidRootPart" then
-				runtimeValue4 = {
+			elseif options:IsA("BasePart") and options.Parent == data and options.Name ~= "HumanoidRootPart" then
+				value = {
 					Color = color
 				}
-				if parameter2:IsA("MeshPart") then
-					runtimeValue4.TextureID = ""
+				if options:IsA("MeshPart") then
+					value.TextureID = ""
 				end
-			elseif parameter2:IsA("BodyColors") then
-				runtimeValue4 = {}
+			elseif options:IsA("BodyColors") then
+				value = {}
 				for _, item in ipairs({
 					"HeadColor3",
 					"TorsoColor3",
@@ -6548,86 +6619,86 @@ do
 					"LeftLegColor3",
 					"RightLegColor3"
 				}) do
-					runtimeValue4[item] = color
+					value[item] = color
 				end
-			elseif parameter2:IsA("SpecialMesh") and parameter2.Parent and parameter2.Parent.Parent == parameter then
-				runtimeValue4 = {
+			elseif options:IsA("SpecialMesh") and options.Parent and options.Parent.Parent == data then
+				value = {
 					TextureId = ""
 				}
-			elseif parameter2:IsA("SurfaceAppearance") and parameter2.Parent and parameter2.Parent.Parent == parameter then
-				runtimeValue4 = {
+			elseif options:IsA("SurfaceAppearance") and options.Parent and options.Parent.Parent == data then
+				value = {
 					Parent = false
 				}
 			end
-			if runtimeValue4 then
-				local dataTable = {}
-				dataTable7.Saved[parameter2] = dataTable
-				for index, item3 in pairs(runtimeValue4) do
+			if value then
+				local records = {}
+				playerDisplayData.Saved[options] = records
+				for index, item3 in pairs(value) do
 					pcall(function()
-						dataTable[index] = parameter2[index]
+						records[index] = options[index]
 						if index == "Parent" then
-							parameter2.Parent = nil
+							options.Parent = nil
 						else
-							parameter2[index] = item3
+							options[index] = item3
 						end
 					end)
 				end
 			end
 		end
-		dataTable7.Descendants = parameter.DescendantAdded:Connect(function(parameter2)
+		playerDisplayData.Descendants = data.DescendantAdded:Connect(function(options)
 			task.defer(function()
-				if dataTable7.Alive and dataTable7.Enabled and generation == dataTable7.Generation then
-					pcall(utilityRoutine, parameter2)
+				if playerDisplayData.Alive and playerDisplayData.Enabled and generation == playerDisplayData.Generation then
+					pcall(helperFunction, options)
 				end
 			end)
 		end)
-		for _, item4 in ipairs(parameter:GetDescendants()) do
-			pcall(utilityRoutine, item4)
+		for _, item4 in ipairs(data:GetDescendants()) do
+			pcall(helperFunction, item4)
 		end
 	end
-	function dataTable7.Set(parameter)
-		if not dataTable7.Alive then
+	function playerDisplayData.Set(data)
+		if not playerDisplayData.Alive then
 			return
 		end
-		parameter = parameter == true
-		runtimeValue41.HideUser = parameter
-		if dataTable7.Enabled == parameter and (not parameter or dataTable7.Character == runtimeValue42.Character) then
+		data = data == true
+		stateReference.HideUser = data
+		if playerDisplayData.Enabled == data and (not data or playerDisplayData.Character == localPlayerReference.Character) then
 			return
 		end
-		dataTable7.Enabled = parameter
-		utilityRoutine31(parameter and runtimeValue42.Character or nil)
-		utilityRoutine26()
+		playerDisplayData.Enabled = data
+		applyPlayerDisplaySettings(data and localPlayerReference.Character or nil)
+		setupPlayerImageTracking()
 	end
-	function dataTable7.Destroy()
-		if not dataTable7.Alive then
+	function playerDisplayData.Destroy()
+		if not playerDisplayData.Alive then
 			return
 		end
-		dataTable7.Alive = false
-		dataTable7.Enabled = false
-		utilityRoutine31(nil)
-		utilityRoutine23()
-		if dataTable7.Respawn then
-			dataTable7.Respawn:Disconnect()
-			dataTable7.Respawn = nil
+		playerDisplayData.Alive = false
+		playerDisplayData.Enabled = false
+		applyPlayerDisplaySettings(nil)
+		setupPlayerDisplay()
+		if playerDisplayData.Respawn then
+			playerDisplayData.Respawn:Disconnect()
+			playerDisplayData.Respawn = nil
 		end
-		if runtimeValue43[text3] == dataTable7 then
-			runtimeValue43[text3] = nil
+		if globalEnvironment[text3] == playerDisplayData then
+			globalEnvironment[text3] = nil
 		end
 	end
-	dataTable7.Respawn = runtimeValue42.CharacterAdded:Connect(function(parameter)
-		if dataTable7.Alive and dataTable7.Enabled then
-			utilityRoutine31(parameter)
+	playerDisplayData.Respawn = localPlayerReference.CharacterAdded:Connect(function(data)
+		if playerDisplayData.Alive and playerDisplayData.Enabled then
+			applyPlayerDisplaySettings(data)
 		end
 	end)
-	function runtimeValue40.SetHideUser(parameter)
-		dataTable7.Set(parameter)
+	function hubReference.SetHideUser(data)
+		playerDisplayData.Set(data)
 	end
 	if Window and type(Window.OnDestroy) == "function" then
 		pcall(function()
-			Window:OnDestroy(dataTable7.Destroy)
+			Window:OnDestroy(playerDisplayData.Destroy)
 		end)
 	end
-	dataTable7.Set(runtimeValue41.HideUser)
+	playerDisplayData.Set(stateReference.HideUser)
 end
 -- Settings and privacy controls
 miscTab:Section({
@@ -6637,8 +6708,8 @@ miscTab:Toggle({
 	Title = "Auto Execute",
 	Desc = "Reload after teleport.",
 	Value = State.AutoExecute,
-	Callback = function(parameter)
-		State.AutoExecute = parameter == true
+	Callback = function(data)
+		State.AutoExecute = data == true
 		saveConfig()
 		if State.AutoExecute and not Hub.QueueTeleport() then
 			setStatus("Auto Execute", Utilities.AutoExecuteError or "Unavailable")
@@ -6651,8 +6722,8 @@ miscTab:Section({
 miscTab:Toggle({
 	Title = "Hide Name",
 	Value = State.HideName,
-	Callback = function(parameter)
-		State.HideName = parameter == true
+	Callback = function(data)
+		State.HideName = data == true
 		Hub.SetHideName(State.HideName)
 		queueConfigSave()
 	end
@@ -6661,8 +6732,8 @@ miscTab:Toggle({
 	Title = "Hide User",
 	Desc = "Hide your character locally.",
 	Value = State.HideUser,
-	Callback = function(parameter)
-		Hub.SetHideUser(parameter)
+	Callback = function(data)
+		Hub.SetHideUser(data)
 		queueConfigSave()
 	end
 })
@@ -6673,8 +6744,8 @@ miscTab:Toggle({
 	Title = "FPS Boost",
 	Desc = "Reduce effects and shadows.",
 	Value = State.FPSBoost,
-	Callback = function(parameter)
-		State.FPSBoost = parameter == true
+	Callback = function(data)
+		State.FPSBoost = data == true
 		Hub.SetFPSBoost(State.FPSBoost)
 		queueConfigSave()
 	end
@@ -6682,14 +6753,14 @@ miscTab:Toggle({
 miscTab:Toggle({
 	Title = "Anti-AFK",
 	Value = State.AntiAFK,
-	Callback = function(parameter)
-		State.AntiAFK = parameter == true
+	Callback = function(data)
+		State.AntiAFK = data == true
 		queueConfigSave()
 	end
 })
 if State.ProfileName ~= "" then
-	local runtimeValue45 = loadProfile(State.ProfileName)
-	if not runtimeValue45 then
+	local loadedProfile = loadProfile(State.ProfileName)
+	if not loadedProfile then
 		State.ProfileName = ""
 	end
 end
